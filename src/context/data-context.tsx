@@ -53,11 +53,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const isServerMode = typeof window !== 'undefined' && !(window as any).electron;
 
   // --- Server Mode: Save data to API ---
   const saveDataToServer = useCallback(async (currentProjects: Project[], currentTasks: Task[]) => {
-    if (!isServerMode) return;
     try {
       await fetch('/api/data', {
         method: 'POST',
@@ -67,52 +65,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Failed to save data to server:", error);
     }
-  }, [isServerMode]);
+  }, []);
 
-  // Use a ref to hold the debounced function so it doesn't get recreated on every render
   const debouncedSave = useRef(debounce(saveDataToServer, 1000)).current;
 
   // --- Load Data ---
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      if (isServerMode) {
-        // Server mode: fetch from API
-        try {
-          const response = await fetch('/api/data');
-          const data = await response.json();
-          if (data.projects && data.tasks) {
-            setProjects(data.projects);
-            setTasks(data.tasks);
-          }
-        } catch (error) {
-          console.error("Failed to load data from server:", error);
+      try {
+        const response = await fetch('/api/data');
+        const data = await response.json();
+        if (data.projects && data.tasks) {
+          setProjects(data.projects);
+          setTasks(data.tasks);
         }
-      } else if (typeof window !== 'undefined' && (window as any).electron) {
-        // Electron mode: use electron-store
-        const ElectronStore = require('electron-store');
-        const store = new ElectronStore();
-        setProjects(store.get('projects') as Project[]);
-        setTasks(store.get('tasks') as Task[]);
+      } catch (error) {
+        console.error("Failed to load data from server:", error);
       }
       setIsLoading(false);
     };
     loadData();
-  }, [isServerMode]);
+  }, []);
   
   // --- Persist Data on Changes ---
   useEffect(() => {
-    if (isLoading) return; // Don't save during initial load
-
-    if (isServerMode) {
-      debouncedSave(projects, tasks);
-    } else if (typeof window !== 'undefined' && (window as any).electron) {
-      const ElectronStore = require('electron-store');
-      const store = new ElectronStore();
-      store.set('projects', projects);
-      store.set('tasks', tasks);
-    }
-  }, [projects, tasks, isServerMode, isLoading, debouncedSave]);
+    if (isLoading) return;
+    debouncedSave(projects, tasks);
+  }, [projects, tasks, isLoading, debouncedSave]);
 
   const createProject = useCallback((data: { name: string; description?: string }) => {
     const newProject: Project = {

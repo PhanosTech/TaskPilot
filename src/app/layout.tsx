@@ -1,13 +1,12 @@
 
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { DataProvider } from "@/context/data-context";
 import { ThemeProvider } from "@/components/theme-provider";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/700.css";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "TaskPilot",
@@ -31,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
+      <body className={cn("min-h-screen bg-background font-sans antialiased")}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
