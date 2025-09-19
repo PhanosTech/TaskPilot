@@ -3,6 +3,7 @@
 
 import { useState, use, useMemo, useContext, useEffect } from "react";
 import { notFound, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   Card,
   CardContent,
@@ -27,11 +28,13 @@ import type { Task, TaskPriority, Note, ProjectStatus, Project, TaskStatus } fro
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { NotesEditor } from "@/components/projects/notes-editor";
-import { NoteRenderer } from "@/components/projects/note-renderer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { DataContext } from "@/context/data-context";
 import { ListFilter } from "lucide-react";
+
+// Dynamically import client-only components
+const NoteRenderer = dynamic(() => import("@/components/projects/note-renderer").then(mod => mod.NoteRenderer), { ssr: false });
 
 const priorityColors: Record<TaskPriority, string> = {
   High: "bg-red-500",
@@ -290,7 +293,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           onSubtaskChange={handleSubtaskChange}
           onAddSubtask={handleAddSubtask}
           onRemoveSubtask={handleRemoveSubtask}
-          onAddLog={handleAddLog}
+          onAddLog={addLog}
         />
       )}
     </div>

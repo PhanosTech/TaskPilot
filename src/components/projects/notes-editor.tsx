@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { Note } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { WysiwygEditor } from "./wysiwyg-editor";
+import dynamic from "next/dynamic";
+
+const WysiwygEditor = dynamic(() => import("./wysiwyg-editor").then(mod => mod.WysiwygEditor), { ssr: false });
 
 interface NotesEditorProps {
   initialNotes: Note[];
@@ -75,22 +77,10 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
     onNotesChange(newNotes);
   };
   
-  const handleNoteTitleChange = (title: string) => {
+  const handleNoteChange = (field: 'title' | 'content', value: string) => {
     if (activeNoteId) {
       const newNotes = notes.map((note) =>
-        note.id === activeNoteId ? { ...note, title } : note
-      );
-      setNotes(newNotes);
-      onNotesChange(newNotes);
-    }
-  };
-
-  const handleNoteContentChange = (content: string) => {
-    if (activeNoteId) {
-      const newNotes = notes.map(note => 
-          note.id === activeNoteId 
-              ? { ...note, content } 
-              : note
+        note.id === activeNoteId ? { ...note, [field]: value } : note
       );
       setNotes(newNotes);
       onNotesChange(newNotes);
@@ -176,15 +166,15 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
           <>
             <Input
               value={activeNote.title}
-              onChange={(e) => handleNoteTitleChange(e.target.value)}
+              onChange={(e) => handleNoteChange('title', e.target.value)}
               className="text-lg font-bold"
             />
-            <div className="flex-1 h-full overflow-y-auto">
-                 <WysiwygEditor
-                    key={activeNote.id}
-                    initialContent={activeNote.content}
-                    onChange={handleNoteContentChange}
-                 />
+            <div className="flex-1 h-full">
+              <WysiwygEditor
+                key={activeNote.id}
+                content={activeNote.content}
+                onChange={(content) => handleNoteChange('content', content)}
+              />
             </div>
           </>
         ) : (

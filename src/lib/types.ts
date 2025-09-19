@@ -4,8 +4,6 @@
  * This includes types for projects, tasks, subtasks, notes, and logs.
  */
 
-import { Block } from "@blocknote/core";
-
 /**
  * Represents a single subtask within a parent task.
  */
@@ -77,5 +75,3 @@ export type Project = {
   notes: Note[];
   status: ProjectStatus;
 };
-
-export type { Block };
