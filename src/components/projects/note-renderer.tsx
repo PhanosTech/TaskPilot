@@ -3,18 +3,26 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect } from 'react';
+import type { Editor } from '@tiptap/core';
+import { useEffect, useState } from 'react';
 
 interface NoteRendererProps {
   content: string;
 }
 
 export function NoteRenderer({ content }: NoteRendererProps) {
-  const editor = useEditor({
+  const [editor, setEditor] = useState<Editor | null>(null);
+
+  const editorInstance = useEditor({
     extensions: [StarterKit],
     content: content,
     editable: false,
   });
+
+  useEffect(() => {
+    setEditor(editorInstance);
+  }, [editorInstance]);
+
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {

@@ -3,7 +3,8 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect } from 'react';
+import type { Editor } from '@tiptap/core';
+import { useEffect, useState } from 'react';
 
 interface WysiwygEditorProps {
   content: string;
@@ -11,13 +12,20 @@ interface WysiwygEditorProps {
 }
 
 export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
-  const editor = useEditor({
+  const [editor, setEditor] = useState<Editor | null>(null);
+
+  const editorInstance = useEditor({
     extensions: [StarterKit],
     content: content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
   });
+
+  useEffect(() => {
+    setEditor(editorInstance);
+  }, [editorInstance]);
+
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
