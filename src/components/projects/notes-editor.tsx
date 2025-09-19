@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import type { Note, Block } from "@/lib/types";
+import type { Note } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,53 +15,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-import "@blocknote/core/fonts/inter.css";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
-import "@blocknote/mantine/style.css";
-
+import { WysiwygEditor } from "./wysiwyg-editor";
 
 interface NotesEditorProps {
   initialNotes: Note[];
   onNotesChange: (notes: Note[]) => void;
 }
 
-const safeJSONParse = (content: string): Block[] | undefined => {
-  if (!content) return undefined;
-  try {
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed) && (parsed.length === 0 || (parsed[0] && parsed[0].type))) {
-      return parsed as Block[];
-    }
-    return [{ type: "paragraph", content }];
-  } catch (error) {
-    return [{ type: "paragraph", content }];
-  }
-};
-
 export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(initialNotes.find(n => !n.parentId)?.id || null);
-  
-  const editor = useCreateBlockNote();
-  
-  // This effect runs ONLY when the user selects a different note.
-  // It loads the new note's content into the editor.
-  useEffect(() => {
-    const noteToLoad = notes.find(note => note.id === activeNoteId);
-    if (noteToLoad) {
-      const content = safeJSONParse(noteToLoad.content);
-      // We use `replaceBlocks` to programmatically update the editor's content.
-      editor.replaceBlocks(editor.document, content || []);
-    } else {
-      // If no note is selected, clear the editor.
-      editor.replaceBlocks(editor.document, []);
-    }
-  // Disabling exhaustive-deps is necessary here to prevent a feedback loop.
-  // We only want this effect to fire when the user clicks a new note (activeNoteId changes).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNoteId, editor]);
+
+  const activeNote = useMemo(() => notes.find((note) => note.id === activeNoteId), [notes, activeNoteId]);
 
   const handleAddNote = (parentId?: string) => {
     const newNote: Note = {
@@ -120,7 +85,17 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
     }
   };
 
-  const activeNote = useMemo(() => notes.find((note) => note.id === activeNoteId), [notes, activeNoteId]);
+  const handleNoteContentChange = (content: string) => {
+    if (activeNoteId) {
+      const newNotes = notes.map(note => 
+          note.id === activeNoteId 
+              ? { ...note, content } 
+              : note
+      );
+      setNotes(newNotes);
+      onNotesChange(newNotes);
+    }
+  };
 
   const renderNoteTree = (parentId?: string, level = 0): JSX.Element[] => {
     return notes
@@ -137,7 +112,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
                   <ChevronRight className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-90")} />
                 </Button>
               ) : (
-                <div className="h-6 w-6 shrink-0" /> /* Placeholder for alignment */
+                <div className="h-6 w-6 shrink-0" />
               )}
               <Button
                 variant="ghost"
@@ -205,19 +180,11 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
               className="text-lg font-bold"
             />
             <div className="flex-1 h-full overflow-y-auto">
-                 <BlockNoteView 
-                    editor={editor} 
-                    theme={"light"}
-                    onChange={() => {
-                        const newNotes = notes.map(note => 
-                            note.id === activeNoteId 
-                                ? { ...note, content: JSON.stringify(editor.document) } 
-                                : note
-                        );
-                        setNotes(newNotes);
-                        onNotesChange(newNotes);
-                    }}
-                />
+                 <WysiwygEditor
+                    key={activeNote.id}
+                    initialContent={activeNote.content}
+                    onChange={handleNoteContentChange}
+                 />
             </div>
           </>
         ) : (
