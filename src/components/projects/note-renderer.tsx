@@ -1,28 +1,20 @@
-
 "use client";
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import type { Editor } from '@tiptap/core';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 interface NoteRendererProps {
   content: string;
 }
 
 export function NoteRenderer({ content }: NoteRendererProps) {
-  const [editor, setEditor] = useState<Editor | null>(null);
-
-  const editorInstance = useEditor({
+  const editor = useEditor({
     extensions: [StarterKit],
     content: content,
     editable: false,
+    immediatelyRender: false,
   });
-
-  useEffect(() => {
-    setEditor(editorInstance);
-  }, [editorInstance]);
-
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {

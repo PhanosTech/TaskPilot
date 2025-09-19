@@ -63,7 +63,41 @@
   * {
     @apply border-border;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground;
+  }
+  
+  ul[data-type="taskList"] {
+    list-style: none;
+    padding: 0;
+  }
+
+  ul[data-type="taskList"] li {
+    display: flex;
+    align-items: center;
+  }
+
+  ul[data-type="taskList"] li > label {
+    margin-right: 0.5rem;
+    cursor: pointer;
+  }
+
+  ul[data-type="taskList"] li > div {
+    flex-grow: 1;
+  }
+  
+  ul[data-type="taskList"] li[data-checked="true"] > div > p {
+    text-decoration: line-through;
+    color: hsl(var(--muted-foreground));
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
