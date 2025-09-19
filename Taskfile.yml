@@ -1,0 +1,85 @@
+version: "3"
+
+env:
+  APPNAME: "TaskPilot"
+  VERSION: "v4.0.0"
+  NODE: "/usr/bin/node"
+  NPM: "/usr/bin/npm"
+  DB_PATH: "test/tasks.db"
+
+dotenv: [".env"]
+
+tasks:
+  install:
+    desc: Install dependencies
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM install
+
+  init:
+    desc: Initialize testing environment and create default DuckDB file
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - mkdir -p $(dirname "$DB_PATH")
+      - touch "$DB_PATH"
+
+  cleanup:
+    desc: Clean up build artifacts
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - rm -rf .next dist/
+
+  build:
+    desc: Build the Next.js application
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run build
+
+  pack:
+    desc: Build Next.js and package as Electron app into dist/
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run pack
+
+  build-electron:
+    desc: Alias for pack task - Build and package as Electron app
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - task: pack
+
+  dev:
+    desc: Run Electron app in development mode with default DB path
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run electron-dev
+
+  dev-web:
+    desc: Run web development server
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run dev
+
+  run:
+    desc: Run production web server
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run start
+
+  run-electron:
+    desc: Run the packaged Electron app (assumes dist/ exists)
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - find dist -name "$APPNAME*" -type f -executable -print0 | xargs -0 -I {} sh -c 'echo "Running {}"; "{}"'
+
+  release:
+    desc: Build the Electron app for Linux and create a GitHub Release with version v1.0.0
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run pack -- --linux
+      - gh release create v1.0.0 --title "TaskPilot v1.0.0" --notes "Automated release of TaskPilot desktop app" --generate-notes dist/*
+
+  build-release:
+    desc: Build the Electron app for both Linux AppImage and Windows .exe using Docker with Wine
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - ./build-windows-exe.sh
