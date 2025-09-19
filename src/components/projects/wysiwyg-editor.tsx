@@ -3,6 +3,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { useEffect } from 'react';
 
 interface WysiwygEditorProps {
   content: string;
@@ -17,6 +18,13 @@ export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
       onChange(editor.getHTML());
     },
   });
+
+  useEffect(() => {
+    if (editor && editor.getHTML() !== content) {
+      editor.commands.setContent(content, false);
+    }
+  }, [content, editor]);
+
 
   return (
     <div className="prose dark:prose-invert max-w-none w-full h-full border rounded-md p-2">
