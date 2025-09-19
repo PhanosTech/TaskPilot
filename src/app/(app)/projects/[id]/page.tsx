@@ -1,16 +1,27 @@
 
 "use client";
 
-import { useState, use, useMemo, useContext, useEffect } from "react";
-import { notFound, useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
+import { useContext, useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { DataContext } from "@/context/data-context";
+import { Project, Task, Note } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import {
   Table,
   TableBody,
@@ -20,164 +31,105 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { TasksByStatusChart } from "@/components/charts/tasks-by-status-chart";
-import type { Task, TaskPriority, Note, ProjectStatus, Project, TaskStatus } from "@/lib/types";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { NotesEditor } from "@/components/projects/notes-editor";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
-import { DataContext } from "@/context/data-context";
-import { ListFilter } from "lucide-react";
+import { Pencil } from "lucide-react";
 
-// Dynamically import client-only components
-const NoteRenderer = dynamic(() => import("@/components/projects/note-renderer").then(mod => mod.NoteRenderer), { ssr: false });
-
-const priorityColors: Record<TaskPriority, string> = {
-  High: "bg-red-500",
-  Medium: "bg-yellow-500",
-  Low: "bg-green-500",
-};
-
-type StatusFilter = TaskStatus | "All";
-
-export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const { 
-    projects, 
-    getProjectTasks, 
-    updateProject, 
-    deleteProject, 
-    createTask, 
-    updateTask, 
-    addSubtask, 
-    removeSubtask, 
-    addLog 
-  } = useContext(DataContext);
-  
-  const [project, setProject] = useState<Project | undefined>(() => 
-    projects.find((p) => p.id === id)
-  );
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("In Progress");
+export default function ProjectPage() {
+  const { id } = useParams();
+  const { projects, tasks, updateProject, updateTask, createTask, deleteTask } =
+    useContext(DataContext);
+  const [project, setProject] = useState<Project | null>(null);
+  const [projectTasks, setProjectTasks] = useState<Task[]>([]);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     const currentProject = projects.find((p) => p.id === id);
-    if (!currentProject) {
-      const timer = setTimeout(() => router.push('/projects'), 50);
-      return () => clearTimeout(timer);
-    } else {
+    if (currentProject) {
       setProject(currentProject);
+      const filteredTasks = tasks.filter((t) => t.projectId === id);
+      setProjectTasks(filteredTasks);
     }
-  }, [projects, id, router]);
+  }, [id, projects, tasks]);
 
-  const tasks = useMemo(() => getProjectTasks(id), [getProjectTasks, id]);
-  
-  const filteredTasks = useMemo(() => {
-    if (statusFilter === "All") {
-      return tasks;
-    }
-    return tasks.filter(task => task.status === statusFilter);
-  }, [tasks, statusFilter]);
-  
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-
-  if (!project) {
-    return <div>Loading project or redirecting...</div>;
-  }
-
-  const mainNote = useMemo(() => {
-    const topLevelNotes = project.notes?.filter(n => !n.parentId);
-    if (topLevelNotes && topLevelNotes.length > 0) {
-      return topLevelNotes[0];
-    }
-    return {
-      id: "main",
-      title: "Main",
-      content: "",
-    };
-  }, [project.notes]);
-
-  const handleCreateTask = (newTaskData: Omit<Task, 'id' | 'projectId' | 'status' | 'logs'>) => {
-    createTask(project.id, newTaskData);
-  };
-
-  const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
-    updateTask(taskId, updatedData);
-    if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask(prevSelectedTask =>
-        prevSelectedTask ? { ...prevSelectedTask, ...updatedData } : null
-      );
+  const handleStatusChange = (newStatus: "not started" | "in progress" | "completed") => {
+    if (project) {
+      const updatedProject = { ...project, status: newStatus };
+      updateProject(updatedProject);
+      setProject(updatedProject);
     }
   };
 
-  const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const newSubtasks = task.subtasks.map(subtask =>
-      subtask.id === subtaskId ? { ...subtask, isCompleted } : subtask
-    );
-    updateTask(taskId, { subtasks: newSubtasks });
-  };
-  
-  const handleAddSubtask = (taskId: string, subtaskTitle: string, storyPoints: number) => {
-    addSubtask(taskId, subtaskTitle, storyPoints);
-  };
-  
-  const handleRemoveSubtask = (taskId: string, subtaskId: string) => {
-    removeSubtask(taskId, subtaskId);
+  const handleTaskCreated = (newTask: Omit<Task, "id" | "projectId">) => {
+    if (project) {
+      createTask({ ...newTask, projectId: project.id });
+    }
   };
 
-  const handleAddLog = (taskId: string, logContent: string) => {
-    addLog(taskId, logContent);
+  const handleTaskUpdated = (updatedTask: Task) => {
+    updateTask(updatedTask);
+    setSelectedTask(null);
+  };
+  
+  const handleTaskDeleted = (taskId: string) => {
+    deleteTask(taskId);
+    setSelectedTask(null);
   };
 
   const handleNotesChange = (newNotes: Note[]) => {
-    updateProject(id, { notes: newNotes });
-  };
-
-  const handleStatusChange = (newStatus: ProjectStatus) => {
-    updateProject(id, { status: newStatus });
+    if (project) {
+      const updatedProject = { ...project, notes: newNotes };
+      updateProject(updatedProject);
+      setProject(updatedProject);
+    }
   };
   
-  const handleDeleteProject = (projectId: string) => {
-    deleteProject(projectId);
+  const handleProjectUpdated = (updatedProject: Project) => {
+    updateProject(updatedProject);
+    setProject(updatedProject);
   };
 
-  const handleUpdateProject = (updatedData: Partial<Project>) => {
-    updateProject(project.id, updatedData);
-  };
+  if (!project) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
+    <div className="space-y-4">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/projects">Projects</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{project.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">{project.name}</h1>
           <p className="text-muted-foreground">{project.description}</p>
         </div>
         <div className="flex items-center gap-2">
-           <div className="w-48">
-            <Select value={project.status} onValueChange={handleStatusChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Set project status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Backlog">Backlog</SelectItem>
-                <SelectItem value="Done">Done</SelectItem>
-                <SelectItem value="Archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <EditProjectDialog 
-            project={project}
-            onUpdateProject={handleUpdateProject}
-            onDeleteProject={handleDeleteProject}
-          />
+          <Select value={project.status} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="not started">Not Started</SelectItem>
+              <SelectItem value="in progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <EditProjectDialog project={project} onProjectUpdated={handleProjectUpdated}>
+            <Button variant="outline" size="icon">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </EditProjectDialog>
         </div>
       </div>
 
@@ -187,113 +139,53 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
-          <CreateTaskDialog onCreateTask={handleCreateTask} defaultProjectId={id} />
+          <CreateTaskDialog onTaskCreated={handleTaskCreated}>
+            <Button>Add Task</Button>
+          </CreateTaskDialog>
         </div>
         <TabsContent value="tasks">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-4">
-              <Card className="col-span-4 lg:col-span-4">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Tasks</CardTitle>
-                    <CardDescription>All tasks associated with this project.</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ListFilter className="h-4 w-4 text-muted-foreground" />
-                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Filter by status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All</SelectItem>
-                        <SelectItem value="To Do">To Do</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Done">Done</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Task</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Points</TableHead>
-                        <TableHead className="hidden md:table-cell">Progress</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredTasks.map((task) => {
-                        const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
-                        const completedSubtaskPoints = task.subtasks
-                          .filter(st => st.isCompleted)
-                          .reduce((sum, st) => sum + st.storyPoints, 0);
-
-                        let progress = 0;
-                        if (task.status === 'Done') {
-                          progress = 100;
-                        } else if (totalSubtaskPoints > 0) {
-                          progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
-                        }
-
-                        return (
-                          <TableRow key={task.id} onClick={() => setSelectedTask(task)} className="cursor-pointer">
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`} />
-                                <div className="font-medium">{task.title}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{task.status}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">{task.storyPoints}</Badge>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <Progress value={progress} className="w-[100px]" />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <div className="col-span-4 lg:col-span-3 flex flex-col gap-4">
-                <TasksByStatusChart tasks={tasks} />
-              </div>
-            </div>
-             {mainNote && (
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>{mainNote.title}</CardTitle>
-                  <CardDescription>Main project note. Edit in the 'Notes' tab.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <NoteRenderer content={mainNote.content} />
-                </CardContent>
-              </Card>
-            )}
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Assignee</TableHead>
+                  <TableHead>Due Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {projectTasks.map((task) => (
+                  <TableRow
+                    key={task.id}
+                    onClick={() => setSelectedTask(task)}
+                    className="cursor-pointer"
+                  >
+                    <TableCell>{task.name}</TableCell>
+                    <TableCell>{task.status}</TableCell>
+                    <TableCell>{task.priority}</TableCell>
+                    <TableCell>{task.assignee}</TableCell>
+                    <TableCell>
+                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "N/A"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </TabsContent>
         <TabsContent value="notes">
-          <NotesEditor 
-            initialNotes={project.notes || []}
-            onNotesChange={handleNotesChange}
-          />
+          <NotesEditor initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
         </TabsContent>
       </Tabs>
       
       {selectedTask && (
-        <TaskDetailDialog 
-          task={selectedTask} 
-          open={!!selectedTask} 
-          onOpenChange={(isOpen) => !isOpen && setSelectedTask(null)}
-          onUpdateTask={handleUpdateTask}
-          onSubtaskChange={handleSubtaskChange}
-          onAddSubtask={handleAddSubtask}
-          onRemoveSubtask={handleRemoveSubtask}
-          onAddLog={addLog}
+        <TaskDetailDialog
+          task={selectedTask}
+          onTaskUpdated={handleTaskUpdated}
+          onTaskDeleted={handleTaskDeleted}
+          onOpenChange={() => setSelectedTask(null)}
         />
       )}
     </div>
