@@ -218,7 +218,7 @@ export default function ProjectPage() {
                       <TableHead>Title</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Story Points</TableHead>
-                      <TableHead>Deadline</TableHead>
+                      <TableHead>Due Date</TableHead>
                       <TableHead>Progress</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -275,7 +275,7 @@ export default function ProjectPage() {
                                   )}
                                 >
                                   <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {task.deadline ? format(new Date(task.deadline), "PPP") : <span>No date</span>}
+                                  {task.deadline ? format(new Date(task.deadline), "MM/dd/yy") : <span>No date</span>}
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0">

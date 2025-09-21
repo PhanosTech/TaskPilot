@@ -188,7 +188,7 @@ export function TaskDetailDialog({
                     <Input type="number" min="1" max="10" value={storyPoints} onChange={(e) => setStoryPoints(Number(e.target.value))} />
                 </div>
                  <div className="flex flex-col space-y-2">
-                    <Label>Deadline</Label>
+                    <Label>Due Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                           <Button
@@ -199,7 +199,7 @@ export function TaskDetailDialog({
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {deadline ? format(deadline, "PPP") : <span>Pick a date</span>}
+                            {deadline ? format(deadline, "MM/dd/yy") : <span>Pick a date</span>}
                           </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
