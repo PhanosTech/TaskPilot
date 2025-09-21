@@ -90,7 +90,7 @@ export default function DashboardPage() {
 
   const totalProjects = projects.length;
   const tasksInProgress = tasks.filter(t => t.status === 'In Progress').length;
-  const overdueTasks = tasks.filter(t => new Date(t.deadline) < new Date() && t.status !== 'Done').length;
+  const overdueTasks = tasks.filter(t => t.deadline && new Date(t.deadline) < new Date() && t.status !== 'Done').length;
 
   const activeWorkQueue = useMemo(() => {
     const inProgressProjects = projects.filter(p => p.status === 'In Progress');
