@@ -41,6 +41,7 @@ import { NoteRenderer } from "@/components/projects/note-renderer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { TasksByStatusChart } from "@/components/charts/tasks-by-status-chart";
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -277,36 +278,7 @@ export default function ProjectPage() {
         </div>
 
         <div className="lg:col-span-1">
-           <Card>
-            <CardHeader>
-              <CardTitle>Project Status</CardTitle>
-              <CardDescription>A quick overview of task progress.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm text-muted-foreground mb-1">
-                  <span>Overall Progress</span>
-                  <span>{Math.round(progress)}%</span>
-                </div>
-                <Progress value={progress} />
-                 <p className="text-xs text-muted-foreground mt-1">{completedStoryPoints} of {totalStoryPoints} story points completed.</p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Tasks To Do</span>
-                  <Badge variant="outline">{tasksToDo}</Badge>
-                </div>
-                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Tasks In Progress</span>
-                  <Badge variant="outline">{tasksInProgress}</Badge>
-                </div>
-                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Tasks Done</span>
-                  <Badge variant="default">{tasksDone}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+           <TasksByStatusChart tasks={projectTasks} />
         </div>
       </div>
       
@@ -337,5 +309,3 @@ export default function ProjectPage() {
     </div>
   );
 }
-
-    
