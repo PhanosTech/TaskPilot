@@ -230,7 +230,7 @@ export default function ProjectPage() {
                     <TableRow>
                       <TableHead>Title</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Priority</TableHead>
+                      <TableHead>Story Points</TableHead>
                       <TableHead>Deadline</TableHead>
                       <TableHead>Progress</TableHead>
                     </TableRow>
@@ -257,7 +257,7 @@ export default function ProjectPage() {
                         >
                           <TableCell>{task.title}</TableCell>
                           <TableCell><Badge variant="outline">{task.status}</Badge></TableCell>
-                          <TableCell>{task.priority}</TableCell>
+                          <TableCell>{task.storyPoints}</TableCell>
                           <TableCell>
                             {task.deadline ? new Date(task.deadline).toLocaleDateString() : "N/A"}
                           </TableCell>
