@@ -36,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { DataContext } from "@/context/data-context";
 import type { Task, TaskPriority } from "@/lib/types";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const priorityColors: Record<TaskPriority, string> = {
   High: "bg-red-500",
@@ -187,55 +188,57 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Task</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Progress</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activeWorkQueue.map((task) => {
-                  const project = projects.find(p => p.id === task.projectId);
-                  const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
-                  const completedSubtaskPoints = task.subtasks
-                    .filter(st => st.isCompleted)
-                    .reduce((sum, st) => sum + st.storyPoints, 0);
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Progress</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeWorkQueue.map((task) => {
+                    const project = projects.find(p => p.id === task.projectId);
+                    const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+                    const completedSubtaskPoints = task.subtasks
+                      .filter(st => st.isCompleted)
+                      .reduce((sum, st) => sum + st.storyPoints, 0);
 
-                  let progress = 0;
-                  if (task.status === 'Done') {
-                    progress = 100;
-                  } else if (totalSubtaskPoints > 0) {
-                    progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
-                  }
+                    let progress = 0;
+                    if (task.status === 'Done') {
+                      progress = 100;
+                    } else if (totalSubtaskPoints > 0) {
+                      progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
+                    }
 
-                  return (
-                    <TableRow 
-                      key={task.id} 
-                      onClick={() => handleTaskClick(task)} 
-                      onDoubleClick={() => handleTaskDoubleClick(task.projectId)}
-                      className="cursor-pointer"
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`} />
-                          <div className="font-medium">{task.title}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{project?.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{task.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Progress value={progress} className="w-[100px]" />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                    return (
+                      <TableRow 
+                        key={task.id} 
+                        onClick={() => handleTaskClick(task)} 
+                        onDoubleClick={() => handleTaskDoubleClick(task.projectId)}
+                        className="cursor-pointer"
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`} />
+                            <div className="font-medium">{task.title}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{project?.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{task.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Progress value={progress} className="w-[100px]" />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
           </CardContent>
         </Card>
         <Card className="col-span-3">
@@ -330,3 +333,5 @@ export default function DashboardPage() {
         </>
       )
     }
+
+    
