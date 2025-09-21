@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 
 /**
@@ -68,14 +68,14 @@ export function TaskDetailDialog({
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [deadline, setDeadline] = useState<Date | undefined>(
-    task.deadline ? new Date(task.deadline) : new Date()
+    task.deadline ? new Date(task.deadline) : addDays(new Date(), 4)
   );
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks);
   
   const [newLog, setNewLog] = useState("");
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [newSubtaskPoints, setNewSubtaskPoints] = useState(0);
+  const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
 
   const { toast } = useToast();
 
@@ -85,7 +85,7 @@ export function TaskDetailDialog({
       setDescription(task.description);
       setStatus(task.status);
       setPriority(task.priority);
-      setDeadline(task.deadline ? new Date(task.deadline) : new Date());
+      setDeadline(task.deadline ? new Date(task.deadline) : addDays(new Date(), 4));
       setStoryPoints(task.storyPoints);
       setSubtasks(task.subtasks);
     }
@@ -107,7 +107,7 @@ export function TaskDetailDialog({
 
     let points = storyPoints;
     if (points < 1) points = 1;
-    if (points > 10) points = 10;
+    if (points > 5) points = 5;
     
     onUpdateTask(task.id, { 
       title, 
@@ -134,9 +134,12 @@ export function TaskDetailDialog({
 
   const handleAddSubtask = () => {
     if (newSubtaskTitle.trim()) {
-      onAddSubtask(task.id, newSubtaskTitle.trim(), newSubtaskPoints);
+      let points = newSubtaskPoints;
+      if (points < 1) points = 1;
+      if (points > 5) points = 5;
+      onAddSubtask(task.id, newSubtaskTitle.trim(), points);
       setNewSubtaskTitle("");
-      setNewSubtaskPoints(0);
+      setNewSubtaskPoints(2);
     }
   };
 
@@ -185,7 +188,7 @@ export function TaskDetailDialog({
                 </div>
                 <div className="flex flex-col space-y-2">
                     <Label>Story Points</Label>
-                    <Input type="number" min="1" max="10" value={storyPoints} onChange={(e) => setStoryPoints(Number(e.target.value))} />
+                    <Input type="number" min="1" max="5" value={storyPoints} onChange={(e) => setStoryPoints(Number(e.target.value))} />
                 </div>
                  <div className="flex flex-col space-y-2">
                     <Label>Due Date</Label>
@@ -235,6 +238,7 @@ export function TaskDetailDialog({
                             />
                              <Input
                                 type="number"
+                                min="1" max="5"
                                 value={subtask.storyPoints}
                                 onChange={(e) => handleSubtaskFieldChange(subtask.id, 'storyPoints', Number(e.target.value))}
                                 className="w-20"
@@ -261,6 +265,7 @@ export function TaskDetailDialog({
                       type="number"
                       placeholder="Pts"
                       className="w-20"
+                      min="1" max="5"
                       value={newSubtaskPoints}
                       onChange={(e) => setNewSubtaskPoints(Number(e.target.value))}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(); }}}

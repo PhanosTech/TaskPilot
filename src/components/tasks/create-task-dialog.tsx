@@ -41,10 +41,10 @@ const taskSchema = z.object({
   description: z.string().optional(),
   deadline: z.date().optional(),
   priority: z.enum(["Low", "Medium", "High"]),
-  storyPoints: z.coerce.number().min(1, "Story points must be at least 1").max(10, "Story points cannot be more than 10"),
+  storyPoints: z.coerce.number().min(1, "Story points must be at least 1").max(5, "Story points cannot be more than 5"),
   subtasks: z.array(z.object({
     title: z.string().min(1, "Subtask title cannot be empty"),
-    storyPoints: z.coerce.number().min(0),
+    storyPoints: z.coerce.number().min(1).max(5),
   })).optional(),
   projectId: z.string().min(1, "A project is required."),
   status: z.enum(["To Do", "In Progress", "Done"]),
@@ -75,7 +75,7 @@ export function CreateTaskDialog({
   const setOpen = setControlledOpen ?? setInternalOpen;
   
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [newSubtaskPoints, setNewSubtaskPoints] = useState(0);
+  const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
   const { toast } = useToast();
 
   const form = useForm<TaskFormValues>({
@@ -114,7 +114,7 @@ export function CreateTaskDialog({
     if (newSubtaskTitle.trim()) {
       append({ title: newSubtaskTitle.trim(), storyPoints: newSubtaskPoints });
       setNewSubtaskTitle("");
-      setNewSubtaskPoints(0);
+      setNewSubtaskPoints(2);
     }
   };
 
@@ -288,7 +288,7 @@ export function CreateTaskDialog({
                   <FormItem>
                     <FormLabel>Story Points</FormLabel>
                     <FormControl>
-                      <Input type="number" min="1" max="10" placeholder="e.g. 2" {...field} />
+                      <Input type="number" min="1" max="5" placeholder="e.g. 2" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -302,7 +302,7 @@ export function CreateTaskDialog({
                 {fields.map((field, index) => (
                   <div key={field.id} className="flex items-center gap-2">
                     <Input {...form.register(`subtasks.${index}.title`)} className="flex-1" placeholder="Subtask title" />
-                    <Input {...form.register(`subtasks.${index}.storyPoints`)} type="number" className="w-20" placeholder="Pts" />
+                    <Input {...form.register(`subtasks.${index}.storyPoints`)} type="number" min="1" max="5" className="w-20" placeholder="Pts" />
                     <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                       <X className="h-4 w-4" />
                     </Button>
@@ -320,6 +320,7 @@ export function CreateTaskDialog({
                   type="number"
                   placeholder="Pts" 
                   className="w-20"
+                  min="1" max="5"
                   value={newSubtaskPoints}
                   onChange={(e) => setNewSubtaskPoints(Number(e.target.value))}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(); }}}
