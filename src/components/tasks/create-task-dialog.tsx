@@ -37,25 +37,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { DataContext } from "@/context/data-context";
 
 const taskSchema = z.object({
-  title: z.string().min(1, "Task title is required"),
+  name: z.string().min(1, "Task name is required"),
   description: z.string().optional(),
-  deadline: z.date({
-    required_error: "A deadline is required.",
-  }),
+  dueDate: z.date().optional(),
   priority: z.enum(["Low", "Medium", "High"]),
-  storyPoints: z.coerce.number().min(0, "Story points must be a positive number"),
+  storyPoints: z.coerce.number().min(0).optional(),
   subtasks: z.array(z.object({
     title: z.string().min(1, "Subtask title cannot be empty"),
-    storyPoints: z.coerce.number().min(0, "Story points must be a positive number"),
-  })),
+    storyPoints: z.coerce.number().min(0),
+  })).optional(),
   projectId: z.string().min(1, "A project is required."),
-  status: z.enum(["To Do", "In Progress", "Done"])
+  status: z.enum(["To Do", "In Progress", "Done"]),
+  assignee: z.string().optional(),
 });
 
 type TaskFormValues = z.infer<typeof taskSchema>;
 
 interface CreateTaskDialogProps {
-  onCreateTask: (data: Omit<Task, 'id' | 'logs'>) => void;
+  onTaskCreated: (data: Omit<Task, 'id' | 'logs'>) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   children?: ReactNode;
@@ -64,7 +63,7 @@ interface CreateTaskDialogProps {
 }
 
 export function CreateTaskDialog({ 
-  onCreateTask,
+  onTaskCreated,
   open: controlledOpen,
   onOpenChange: setControlledOpen,
   children,
@@ -74,7 +73,7 @@ export function CreateTaskDialog({
   const { projects } = useContext(DataContext);
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const setOpen = setControlledOpen ?? setInternalOpen;
+  const setOpen = setControlledOpen ?? internalOpen;
   
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskPoints, setNewSubtaskPoints] = useState(0);
@@ -83,26 +82,28 @@ export function CreateTaskDialog({
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
-      title: "",
+      name: "",
       description: "",
       priority: "Medium",
       storyPoints: 0,
       subtasks: [],
       status: defaultStatus,
       projectId: defaultProjectId,
+      assignee: "",
     },
   });
 
   useEffect(() => {
     form.reset({
-      title: "",
+      name: "",
       description: "",
       priority: "Medium",
       storyPoints: 0,
       subtasks: [],
-      deadline: undefined,
+      dueDate: undefined,
       status: defaultStatus,
       projectId: defaultProjectId,
+      assignee: "",
     });
   }, [open, defaultStatus, defaultProjectId, form]);
 
@@ -121,22 +122,22 @@ export function CreateTaskDialog({
 
 
   const onSubmit = (data: TaskFormValues) => {
-    const finalSubtasks: Subtask[] = data.subtasks.map((st, index) => ({
+    const finalSubtasks: Subtask[] = (data.subtasks || []).map((st, index) => ({
       id: `sub-${Date.now()}-${index}`,
       title: st.title,
       storyPoints: st.storyPoints,
       isCompleted: false,
     }));
 
-    onCreateTask({ 
-      ...data, 
-      deadline: data.deadline.toISOString(),
-      subtasks: finalSubtasks
+    onTaskCreated({ 
+      ...data,
+      dueDate: data.dueDate?.toISOString(),
+      subtasks: finalSubtasks,
     });
 
     toast({
       title: "Task Created",
-      description: `Task "${data.title}" has been created successfully.`,
+      description: `Task "${data.name}" has been created successfully.`,
     });
     setOpen(false);
     form.reset();
@@ -191,10 +192,10 @@ export function CreateTaskDialog({
             
             <FormField
               control={form.control}
-              name="title"
+              name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Task Title</FormLabel>
+                  <FormLabel>Task Name</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Design new logo" {...field} />
                   </FormControl>
@@ -221,28 +222,26 @@ export function CreateTaskDialog({
             <div className="grid grid-cols-2 gap-4">
                <FormField
                 control={form.control}
-                name="deadline"
+                name="dueDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Deadline</FormLabel>
+                    <FormLabel>Due Date</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
@@ -280,20 +279,35 @@ export function CreateTaskDialog({
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="storyPoints"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Story Points</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="e.g. 5" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="assignee"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assignee</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Jane Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="storyPoints"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Story Points</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g. 5" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div>
               <FormLabel>Subtasks</FormLabel>

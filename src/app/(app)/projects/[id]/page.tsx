@@ -2,7 +2,7 @@
 "use client";
 
 import { useContext, useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { DataContext } from "@/context/data-context";
 import { Project, Task, Note } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,8 @@ import { Pencil } from "lucide-react";
 
 export default function ProjectPage() {
   const { id } = useParams();
-  const { projects, tasks, updateProject, updateTask, createTask, deleteTask } =
+  const router = useRouter();
+  const { projects, tasks, updateProject, deleteProject, updateTask, createTask, deleteTask } =
     useContext(DataContext);
   const [project, setProject] = useState<Project | null>(null);
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
@@ -57,19 +58,16 @@ export default function ProjectPage() {
   const handleStatusChange = (newStatus: "not started" | "in progress" | "completed") => {
     if (project) {
       const updatedProject = { ...project, status: newStatus };
-      updateProject(updatedProject);
-      setProject(updatedProject);
+      updateProject(project.id, updatedProject);
     }
   };
 
-  const handleTaskCreated = (newTask: Omit<Task, "id" | "projectId">) => {
-    if (project) {
-      createTask({ ...newTask, projectId: project.id });
-    }
+  const handleTaskCreated = (newTask: Omit<Task, "id" | "logs">) => {
+    createTask(newTask);
   };
 
   const handleTaskUpdated = (updatedTask: Task) => {
-    updateTask(updatedTask);
+    updateTask(updatedTask.id, updatedTask);
     setSelectedTask(null);
   };
   
@@ -80,15 +78,19 @@ export default function ProjectPage() {
 
   const handleNotesChange = (newNotes: Note[]) => {
     if (project) {
-      const updatedProject = { ...project, notes: newNotes };
-      updateProject(updatedProject);
-      setProject(updatedProject);
+      updateProject(project.id, { notes: newNotes });
     }
   };
   
-  const handleProjectUpdated = (updatedProject: Project) => {
-    updateProject(updatedProject);
-    setProject(updatedProject);
+  const handleProjectUpdated = (data: Partial<Project>) => {
+    if (project) {
+      updateProject(project.id, data);
+    }
+  };
+  
+  const handleProjectDeleted = (projectId: string) => {
+    deleteProject(projectId);
+    router.push("/projects");
   };
 
   if (!project) {
@@ -125,11 +127,11 @@ export default function ProjectPage() {
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
-          <EditProjectDialog project={project} onProjectUpdated={handleProjectUpdated}>
-            <Button variant="outline" size="icon">
-              <Pencil className="h-4 w-4" />
-            </Button>
-          </EditProjectDialog>
+          <EditProjectDialog 
+            project={project} 
+            onUpdateProject={handleProjectUpdated}
+            onDeleteProject={handleProjectDeleted}
+          />
         </div>
       </div>
 
@@ -139,7 +141,7 @@ export default function ProjectPage() {
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
-          <CreateTaskDialog onTaskCreated={handleTaskCreated}>
+          <CreateTaskDialog onTaskCreated={handleTaskCreated} defaultProjectId={project.id}>
             <Button>Add Task</Button>
           </CreateTaskDialog>
         </div>

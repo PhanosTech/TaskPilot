@@ -25,11 +25,12 @@ interface DataContextType {
   updateProject: (projectId: string, data: Partial<Project>) => void;
   deleteProject: (projectId: string) => void;
   getProjectTasks: (projectId: string) => Task[];
-  createTask: (projectId: string, data: Omit<Task, 'id' | 'projectId' | 'logs' | 'subtasks' | 'storyPoints'> & { storyPoints?: number }) => void;
+  createTask: (data: Omit<Task, 'id' | 'logs'>) => void;
   updateTask: (taskId: string, data: Partial<Task>) => void;
+  deleteTask: (taskId: string) => void;
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
   addSubtask: (taskId: string, subtaskTitle: string, storyPoints: number) => void;
-  removeSubtask: (taskId: string, subtaskId: string) => void;
+  removeSubtask: (taskId:string, subtaskId: string) => void;
   addLog: (taskId: string, logContent: string) => void;
 }
 
@@ -43,6 +44,7 @@ export const DataContext = createContext<DataContextType>({
   getProjectTasks: () => [],
   createTask: () => {},
   updateTask: () => {},
+  deleteTask: () => {},
   updateTaskStatus: () => {},
   addSubtask: () => {},
   removeSubtask: () => {},
@@ -120,13 +122,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return tasks.filter(task => task.projectId === projectId);
   }, [tasks]);
 
-    const createTask = useCallback((projectId: string, data: Omit<Task, 'id' | 'projectId' | 'logs' | 'subtasks' | 'storyPoints'> & { storyPoints?: number }) => {
+  const createTask = useCallback((data: Omit<Task, 'id' | 'logs'>) => {
     const newTask: Task = {
       id: `task-${Date.now()}`,
-      projectId,
       logs: [],
-      subtasks: [],
-      storyPoints: data.storyPoints || 0,
+      subtasks: data.subtasks || [],
       ...data,
     };
     setTasks(prev => [...prev, newTask]);
@@ -136,6 +136,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTasks(prev =>
       prev.map(t => (t.id === taskId ? { ...t, ...data } : t))
     );
+  }, []);
+  
+  const deleteTask = useCallback((taskId: string) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
   }, []);
 
   const updateTaskStatus = useCallback((taskId: string, newStatus: TaskStatus) => {
@@ -198,6 +202,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     getProjectTasks,
     createTask,
     updateTask,
+    deleteTask,
     updateTaskStatus,
     addSubtask,
     removeSubtask,
