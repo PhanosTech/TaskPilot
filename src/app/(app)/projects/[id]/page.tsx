@@ -4,7 +4,7 @@
 import { useContext, useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DataContext } from "@/context/data-context";
-import { Project, Task, Note, ProjectStatus, TaskStatus, TaskPriority } from "@/lib/types";
+import { Project, Task, Note, ProjectStatus, TaskStatus, TaskPriority, Subtask } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -64,6 +64,7 @@ export default function ProjectPage() {
     updateTask, 
     createTask, 
     deleteTask,
+    updateSubtask,
     addSubtask,
     removeSubtask,
     addLog,
@@ -125,14 +126,8 @@ export default function ProjectPage() {
     updateTask(taskId, updatedData);
   };
   
-  const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const newSubtasks = task.subtasks.map(subtask =>
-      subtask.id === subtaskId ? { ...subtask, isCompleted } : subtask
-    );
-    updateTask(taskId, { subtasks: newSubtasks });
+  const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
+    updateSubtask(taskId, subtaskId, changes);
   };
   
   const handleNotesChange = (newNotes: Note[]) => {
@@ -346,7 +341,3 @@ export default function ProjectPage() {
     </div>
   );
 }
-
-    
-
-    

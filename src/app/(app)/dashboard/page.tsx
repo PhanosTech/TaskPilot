@@ -35,7 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { DataContext } from "@/context/data-context";
-import type { Task, TaskPriority } from "@/lib/types";
+import type { Task, TaskPriority, Subtask } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const priorityColors: Record<TaskPriority, string> = {
@@ -55,6 +55,7 @@ export default function DashboardPage() {
     projects, 
     tasks, 
     updateTask, 
+    updateSubtask,
     addSubtask, 
     removeSubtask, 
     addLog 
@@ -134,14 +135,8 @@ export default function DashboardPage() {
   };
 
 
-  const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const newSubtasks = task.subtasks.map(subtask =>
-      subtask.id === subtaskId ? { ...subtask, isCompleted } : subtask
-    );
-    updateTask(taskId, { subtasks: newSubtasks });
+  const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
+    updateSubtask(taskId, subtaskId, changes);
   };
 
   const handleTaskClick = (task: Task) => {
@@ -346,9 +341,3 @@ export default function DashboardPage() {
         </>
       )
     }
-
-    
-
-    
-
-    

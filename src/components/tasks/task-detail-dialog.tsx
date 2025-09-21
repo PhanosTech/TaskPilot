@@ -39,7 +39,7 @@ interface TaskDetailDialogProps {
   /** Callback to update a task with new data. */
   onUpdateTask: (taskId: string, updatedData: Partial<Task>) => void;
   /** Callback for when a subtask's completion status changes. */
-  onSubtaskChange: (taskId: string, subtaskId: string, isCompleted: boolean) => void;
+  onSubtaskChange: (taskId: string, subtaskId: string, changes: Partial<Subtask>) => void;
   /** Callback to add a new subtask to the current task. */
   onAddSubtask: (taskId: string, subtaskTitle: string, storyPoints: number) => void;
   /** Callback to remove a subtask from the current task. */
@@ -139,6 +139,14 @@ export function TaskDetailDialog({
       setNewSubtaskPoints(2);
     }
   };
+  
+  const handleSubtaskPointsChange = (subtaskId: string, points: number) => {
+    let newPoints = points;
+    if (newPoints < 1) newPoints = 1;
+    if (newPoints > 5) newPoints = 5;
+    onSubtaskChange(task.id, subtaskId, { storyPoints: newPoints });
+  };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -221,15 +229,23 @@ export function TaskDetailDialog({
                                 id={`subtask-${subtask.id}`}
                                 checked={subtask.isCompleted}
                                 onCheckedChange={(checked) =>
-                                  onSubtaskChange(task.id, subtask.id, !!checked)
+                                  onSubtaskChange(task.id, subtask.id, { isCompleted: !!checked })
                                 }
                             />
                             <Label
                               htmlFor={`subtask-${subtask.id}`}
                               className={`flex-1 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
                             >
-                              {subtask.title} ({subtask.storyPoints} pts)
+                              {subtask.title}
                             </Label>
+                             <Input
+                              type="number"
+                              min="1"
+                              max="5"
+                              value={subtask.storyPoints}
+                              onChange={(e) => handleSubtaskPointsChange(subtask.id, Number(e.target.value))}
+                              className="w-20 h-8"
+                            />
                             <Button
                               variant="ghost"
                               size="icon"

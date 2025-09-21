@@ -29,6 +29,7 @@ interface DataContextType {
   updateTask: (taskId: string, data: Partial<Task>) => void;
   deleteTask: (taskId: string) => void;
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
+  updateSubtask: (taskId: string, subtaskId: string, changes: Partial<Subtask>) => void;
   addSubtask: (taskId: string, subtaskTitle: string, storyPoints: number) => void;
   removeSubtask: (taskId:string, subtaskId: string) => void;
   addLog: (taskId: string, logContent: string) => void;
@@ -46,6 +47,7 @@ export const DataContext = createContext<DataContextType>({
   updateTask: () => {},
   deleteTask: () => {},
   updateTaskStatus: () => {},
+  updateSubtask: () => {},
   addSubtask: () => {},
   removeSubtask: () => {},
   addLog: () => {},
@@ -148,6 +150,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
   }, []);
   
+  const updateSubtask = useCallback((taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          subtasks: task.subtasks.map(subtask => 
+            subtask.id === subtaskId ? { ...subtask, ...changes } : subtask
+          )
+        };
+      }
+      return task;
+    }));
+  }, []);
+
   const addSubtask = useCallback((taskId: string, subtaskTitle: string, storyPoints: number) => {
     setTasks(prev =>
       prev.map(task => {
@@ -204,6 +220,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updateTask,
     deleteTask,
     updateTaskStatus,
+    updateSubtask,
     addSubtask,
     removeSubtask,
     addLog,

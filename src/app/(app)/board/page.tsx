@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useContext, useEffect } from "react";
 import { KanbanBoard } from "@/components/board/kanban-board";
-import type { Task, TaskStatus } from "@/lib/types";
+import type { Task, TaskStatus, Subtask } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { DataContext } from "@/context/data-context";
@@ -14,7 +14,8 @@ export default function BoardPage() {
     tasks, 
     createTask, 
     updateTask, 
-    updateTaskStatus, 
+    updateTaskStatus,
+    updateSubtask, 
     addSubtask, 
     removeSubtask, 
     addLog 
@@ -40,15 +41,11 @@ export default function BoardPage() {
     updateTask(taskId, updatedData);
   };
 
-  const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const newSubtasks = task.subtasks.map(subtask =>
-      subtask.id === subtaskId ? { ...subtask, isCompleted } : subtask
-    );
-    updateTask(taskId, { subtasks: newSubtasks });
+  const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
+    updateSubtask(taskId, subtaskId, changes);
   };
+  
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   
   const filteredTasks = useMemo(() => {
     const activeProjectIds = new Set(inProgressProjects.map(p => p.id));
@@ -64,7 +61,6 @@ export default function BoardPage() {
     return []; // Return empty if a non-in-progress project is somehow selected
   }, [selectedProjectId, tasks, inProgressProjects]);
   
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
 
   const handleTaskSelect = (task: Task) => {
     setSelectedTaskId(task.id);
