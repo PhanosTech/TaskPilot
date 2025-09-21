@@ -146,6 +146,10 @@ export function TaskDetailDialog({
     if (newPoints > 5) newPoints = 5;
     onSubtaskChange(task.id, subtaskId, { storyPoints: newPoints });
   };
+  
+  const handleSubtaskTitleChange = (subtaskId: string, title: string) => {
+    onSubtaskChange(task.id, subtaskId, { title });
+  };
 
 
   return (
@@ -232,12 +236,11 @@ export function TaskDetailDialog({
                                   onSubtaskChange(task.id, subtask.id, { isCompleted: !!checked })
                                 }
                             />
-                            <Label
-                              htmlFor={`subtask-${subtask.id}`}
-                              className={`flex-1 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
-                            >
-                              {subtask.title}
-                            </Label>
+                            <Input
+                              value={subtask.title}
+                              onChange={(e) => handleSubtaskTitleChange(subtask.id, e.target.value)}
+                              className={`flex-1 h-8 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
+                            />
                              <Input
                               type="number"
                               min="1"
