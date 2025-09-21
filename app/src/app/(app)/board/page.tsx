@@ -8,6 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { DataContext } from "@/context/data-context";
 
+/**
+ * @page BoardPage
+ * Renders the main Kanban board view. It allows users to visualize tasks
+ * across different statuses and filter them by project.
+ * @returns {JSX.Element} The rendered Kanban board page.
+ */
 export default function BoardPage() {
   const { 
     projects, 
@@ -24,31 +30,48 @@ export default function BoardPage() {
   } = useContext(DataContext);
   
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-
+  
+  // Memoize the selected task to avoid re-finding it on every render.
   const selectedTask = useMemo(() => {
     if (!selectedTaskId) return null;
     return tasks.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, tasks]);
 
+  // Memoize the list of projects that are currently "In Progress".
   const inProgressProjects = useMemo(() => projects.filter(p => p.status === 'In Progress'), [projects]);
 
+  /**
+   * Handles the creation of a new task from the Kanban board.
+   * @param {Omit<Task, 'id' | 'logs'>} newTaskData - The data for the new task.
+   */
   const handleCreateTask = (newTaskData: Omit<Task, 'id' | 'logs'>) => {
-    // projectId should be set in the data
     if (newTaskData.projectId) {
        createTask(newTaskData);
     }
   };
 
+  /**
+   * Handles updating a task's details.
+   * @param {string} taskId - The ID of the task to update.
+   * @param {Partial<Task>} updatedData - The new data for the task.
+   */
   const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
     updateTask(taskId, updatedData);
   };
 
+  /**
+   * Handles changes to a subtask (e.g., completion status).
+   * @param {string} taskId - The parent task's ID.
+   * @param {string} subtaskId - The subtask's ID.
+   * @param {Partial<Subtask>} changes - The updated properties for the subtask.
+   */
   const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
     updateSubtask(taskId, subtaskId, changes);
   };
   
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   
+  // Memoize the list of tasks to be displayed on the board based on the selected project filter.
   const filteredTasks = useMemo(() => {
     const activeProjectIds = new Set(inProgressProjects.map(p => p.id));
 
@@ -64,6 +87,10 @@ export default function BoardPage() {
   }, [selectedProjectId, tasks, inProgressProjects]);
   
 
+  /**
+   * Sets the selected task to be displayed in the detail dialog.
+   * @param {Task} task - The task that was selected.
+   */
   const handleTaskSelect = (task: Task) => {
     setSelectedTaskId(task.id);
   };

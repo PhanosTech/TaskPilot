@@ -53,6 +53,12 @@ const priorityOrder: Record<TaskPriority, number> = {
   Low: 2,
 };
 
+/**
+ * @page ProjectPage
+ * Displays the detailed view for a single project. It includes a task list,
+ * a notes editor, project statistics, and controls for editing the project.
+ * @returns {JSX.Element | null} The rendered project detail page, or a loading state.
+ */
 export default function ProjectPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -82,6 +88,7 @@ export default function ProjectPage() {
     return tasks.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, tasks]);
   
+  // Effect to find and set the current project and its tasks from the context.
   useEffect(() => {
     const currentProject = projects.find((p) => p.id === id);
     if (currentProject) {
@@ -104,6 +111,11 @@ export default function ProjectPage() {
     return { mainNote, filteredProjectTasks };
   }, [projectTasks, project, statusFilters]);
 
+  /**
+   * Handles changes to the task status filter checkboxes.
+   * @param {TaskStatus} status - The status to add or remove from the filter.
+   * @param {boolean} checked - The new checked state.
+   */
   const handleStatusFilterChange = (status: TaskStatus, checked: boolean) => {
     setStatusFilters(prev => {
       if (checked) {
@@ -114,12 +126,20 @@ export default function ProjectPage() {
     });
   };
 
+  /**
+   * Handles changing the project's overall status.
+   * @param {ProjectStatus} newStatus - The new status for the project.
+   */
   const handleStatusChange = (newStatus: ProjectStatus) => {
     if (project) {
       updateProject(project.id, { status: newStatus });
     }
   };
 
+  /**
+   * Handles the creation of a new task.
+   * @param {Omit<Task, "id" | "logs">} newTask - The new task data.
+   */
   const handleTaskCreated = (newTask: Omit<Task, "id" | "logs">) => {
     createTask(newTask);
   };
@@ -132,18 +152,30 @@ export default function ProjectPage() {
     updateSubtask(taskId, subtaskId, changes);
   };
   
+  /**
+   * Handles changes to the project's notes.
+   * @param {Note[]} newNotes - The updated array of notes.
+   */
   const handleNotesChange = (newNotes: Note[]) => {
     if (project) {
       updateProject(project.id, { notes: newNotes });
     }
   };
   
+  /**
+   * Handles updates to the project's name or description.
+   * @param {Partial<Project>} data - The updated project data.
+   */
   const handleProjectUpdated = (data: Partial<Project>) => {
     if (project) {
       updateProject(project.id, data);
     }
   };
   
+  /**
+   * Handles the deletion of the project.
+   * @param {string} projectId - The ID of the project to delete.
+   */
   const handleProjectDeleted = (projectId: string) => {
     deleteProject(projectId);
     router.push("/projects");

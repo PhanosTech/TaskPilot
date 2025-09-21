@@ -50,6 +50,12 @@ const priorityOrder: Record<TaskPriority, number> = {
   Low: 2,
 };
 
+/**
+ * @page DashboardPage
+ * The main dashboard for the application. It displays summary statistics,
+ * an active work queue, personal todos, and a scratchpad.
+ * @returns {JSX.Element} The rendered dashboard page.
+ */
 export default function DashboardPage() {
   const { 
     projects, 
@@ -72,7 +78,7 @@ export default function DashboardPage() {
     return tasks.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, tasks]);
 
-  // Load scratchpad from localStorage on initial render
+  // Load scratchpad from localStorage on initial render.
   useEffect(() => {
     const savedContent = localStorage.getItem("taskpilot-scratchpad");
     if (savedContent) {
@@ -80,7 +86,7 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Save scratchpad to localStorage on change
+  // Save scratchpad to localStorage on change, with debouncing.
   useEffect(() => {
     const handler = setTimeout(() => {
       localStorage.setItem("taskpilot-scratchpad", scratchpadContent);
@@ -113,6 +119,9 @@ export default function DashboardPage() {
   ]);
   const [newTodo, setNewTodo] = useState("");
 
+  /**
+   * Adds a new item to the personal todo list.
+   */
   const handleAddTodo = () => {
     if (newTodo.trim() !== "") {
       setPersonalTodos([...personalTodos, { id: Date.now(), text: newTodo, completed: false, status: "in-progress" }]);
@@ -120,18 +129,31 @@ export default function DashboardPage() {
     }
   };
 
+  /**
+   * Toggles the completion status of a personal todo item.
+   * @param {number} id - The ID of the todo item to toggle.
+   */
   const handleToggleTodo = (id: number) => {
     setPersonalTodos(personalTodos.map(todo => 
       todo.id === id ? { ...todo, completed: !todo.completed } : todo
     ));
   };
 
+  /**
+   * Moves a personal todo item between the "In Progress" and "Backlog" lists.
+   * @param {number} id - The ID of the todo item to move.
+   * @param {'in-progress' | 'backlog'} status - The new status for the todo.
+   */
   const handleUpdateTodoStatus = (id: number, status: "in-progress" | "backlog") => {
     setPersonalTodos(personalTodos.map(todo => 
       todo.id === id ? { ...todo, status } : todo
     ));
   };
   
+  /**
+   * Deletes a personal todo item.
+   * @param {number} id - The ID of the todo item to delete.
+   */
   const handleDeleteTodo = (id: number) => {
     setPersonalTodos(personalTodos.filter(todo => todo.id !== id));
   };
@@ -141,10 +163,18 @@ export default function DashboardPage() {
     updateSubtask(taskId, subtaskId, changes);
   };
 
+  /**
+   * Handles a single click on a task in the work queue, opening the detail dialog.
+   * @param {Task} task - The clicked task.
+   */
   const handleTaskClick = (task: Task) => {
     setSelectedTaskId(task.id);
   };
 
+  /**
+   * Handles a double click on a task in the work queue, navigating to its project page.
+   * @param {string} projectId - The ID of the task's project.
+   */
   const handleTaskDoubleClick = (projectId: string) => {
     router.push(`/projects/${projectId}`);
   };

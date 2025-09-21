@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useContext } from "react";
 import {
   Card,
   CardContent,
@@ -19,14 +19,23 @@ import {
 } from "@/components/ui/tooltip";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { DataContext } from "@/context/data-context";
-import { useContext } from "react";
 import { Calendar, MessageSquare, Star } from "lucide-react";
-import type { Task, TaskPriority } from "@/lib/types";
+import type { Task, TaskPriority, Subtask } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/**
+ * @interface KanbanCardProps
+ * Props for the KanbanCard component.
+ */
 interface KanbanCardProps {
+  /** The task object to display. */
   task: Task;
+  /** 
+   * Callback function for when the task's status changes.
+   * @param {Task['status']} newStatus - The new status.
+   */
   onStatusChange: (newStatus: Task['status']) => void;
+  /** Callback function for when the card is double-clicked, typically to open a detail view. */
   onDoubleClick: () => void;
 }
 
@@ -36,6 +45,13 @@ const priorityColors: Record<TaskPriority, string> = {
     Low: "bg-green-500",
 };
 
+/**
+ * @component KanbanCard
+ * A card component that represents a single task on the Kanban board.
+ * It is draggable and displays key task information.
+ * @param {KanbanCardProps} props - The component props.
+ * @returns {JSX.Element} The rendered task card.
+ */
 export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
     const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -48,24 +64,97 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
       deleteLog,
       updateSubtask,
     } = useContext(DataContext);
+    
+    const [selectedTask, setSelectedTask] = useState(task);
+
+    // Update internal state if the task prop changes
+    useMemo(() => {
+        setSelectedTask(task);
+    }, [task]);
 
 
     const progress = useMemo(() => {
         if (task.status === 'Done') return 100;
-        if (task.subtasks.length === 0) return 0;
+        const totalPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+        if (totalPoints === 0) return 0;
+        
+        const completedPoints = task.subtasks
+            .filter(st => st.isCompleted)
+            .reduce((sum, st) => sum + st.storyPoints, 0);
 
-        const completedSubtasks = task.subtasks.filter(st => st.isCompleted);
-        return (completedSubtasks.length / task.subtasks.length) * 100;
+        return (completedPoints / totalPoints) * 100;
     }, [task.subtasks, task.status]);
     
+    /**
+     * Handles the start of a drag operation.
+     * @param {React.DragEvent<HTMLDivElement>} e - The drag event.
+     */
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
       e.dataTransfer.setData("taskId", task.id);
       setIsDragging(true);
     };
 
+    /**
+     * Handles the end of a drag operation.
+     */
     const handleDragEnd = () => {
       setIsDragging(false);
     };
+    
+    /**
+     * Generic handler for updating the selected task.
+     * @param {string} taskId - The ID of the task to update.
+     * @param {Partial<Task>} updatedData - The data to update.
+     */
+    const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
+        updateTask(taskId, updatedData);
+        setSelectedTask(prev => ({ ...prev, ...updatedData }));
+    };
+
+    /**
+     * Generic handler for updating a subtask.
+     * @param {string} taskId - The ID of the parent task.
+     * @param {string} subtaskId - The ID of the subtask.
+     * @param {Partial<Subtask>} changes - The changes to apply.
+     */
+    const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
+        updateSubtask(taskId, subtaskId, changes);
+        setSelectedTask(prev => ({
+            ...prev,
+            subtasks: prev.subtasks.map(st => st.id === subtaskId ? { ...st, ...changes } : st)
+        }));
+    };
+
+    /**
+     * Generic handler for adding a subtask.
+     * @param {string} taskId - The ID of the parent task.
+     * @param {string} title - The title of the new subtask.
+     * @param {number} storyPoints - The story points for the new subtask.
+     */
+    const handleAddSubtask = (taskId: string, title: string, storyPoints: number) => {
+        // We can't know the new subtask's ID here, so we rely on the context to update the main state
+        // and the updated task will flow back down through props.
+        addSubtask(taskId, title, storyPoints);
+    };
+
+    /**
+     * Generic handler for removing a subtask.
+     * @param {string} taskId - The ID of the parent task.
+     * @param {string} subtaskId - The ID of the subtask to remove.
+     */
+    const handleRemoveSubtask = (taskId: string, subtaskId: string) => {
+        removeSubtask(taskId, subtaskId);
+        setSelectedTask(prev => ({
+            ...prev,
+            subtasks: prev.subtasks.filter(st => st.id !== subtaskId)
+        }));
+    };
+    
+    // Similar handlers for logs
+    const handleAddLog = (taskId: string, content: string) => addLog(taskId, content);
+    const handleUpdateLog = (taskId: string, logId: string, content: string) => updateLog(taskId, logId, content);
+    const handleDeleteLog = (taskId: string, logId: string) => deleteLog(taskId, logId);
+
 
     return (
         <>
@@ -82,7 +171,7 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
                 >
                     <CardHeader className="p-3">
                         <div className="flex justify-between items-center">
-                            <Badge variant="outline">{task.status}</Badge>
+                            <Badge variant="outline">{task.projectId}</Badge>
                         </div>
                         <CardTitle className="text-base pt-1">{task.title}</CardTitle>
                     </CardHeader>
@@ -90,7 +179,7 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
                        <div className="flex space-x-2 text-sm text-muted-foreground">
                            <div className="flex items-center gap-1">
                                <Calendar className="h-4 w-4" />
-                               <span>{new Date(task.deadline).toLocaleDateString()}</span>
+                               <span>{task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No date'}</span>
                            </div>
                            {task.subtasks.length > 0 && (
                               <div className="flex items-center gap-1">
@@ -123,14 +212,14 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
               <TaskDetailDialog
                   open={isDetailViewOpen}
                   onOpenChange={setIsDetailViewOpen}
-                  task={task}
-                  onUpdateTask={updateTask}
-                  onSubtaskChange={updateSubtask}
-                  onAddSubtask={addSubtask}
-                  onRemoveSubtask={removeSubtask}
-                  onAddLog={addLog}
-                  onUpdateLog={updateLog}
-                  onDeleteLog={deleteLog}
+                  task={selectedTask}
+                  onUpdateTask={handleUpdateTask}
+                  onSubtaskChange={handleSubtaskChange}
+                  onAddSubtask={handleAddSubtask}
+                  onRemoveSubtask={handleRemoveSubtask}
+                  onAddLog={handleAddLog}
+                  onUpdateLog={handleUpdateLog}
+                  onDeleteLog={handleDeleteLog}
               />
             )}
         </>
