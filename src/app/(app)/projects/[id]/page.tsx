@@ -34,7 +34,6 @@ import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { NotesTabContent } from "@/components/projects/notes-tab-content";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NoteRenderer } from "@/components/projects/note-renderer";
@@ -42,6 +41,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { TasksByStatusChart } from "@/components/charts/tasks-by-status-chart";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -74,31 +78,14 @@ export default function ProjectPage() {
   }, [id, projects, tasks]);
 
   const {
-    tasksToDo,
-    tasksInProgress,
-    tasksDone,
-    totalStoryPoints,
-    completedStoryPoints,
-    progress,
     mainNote,
     filteredProjectTasks
   } = useMemo(() => {
-    const tasksToDo = projectTasks.filter(t => t.status === 'To Do').length;
-    const tasksInProgress = projectTasks.filter(t => t.status === 'In Progress').length;
-    const tasksDone = projectTasks.filter(t => t.status === 'Done').length;
-
-    const totalStoryPoints = projectTasks.reduce((sum, task) => sum + task.storyPoints, 0);
-    const completedStoryPoints = projectTasks.reduce((sum, task) => {
-      if (task.status === 'Done') return sum + task.storyPoints;
-      return sum;
-    }, 0);
-    const progress = totalStoryPoints > 0 ? (completedStoryPoints / totalStoryPoints) * 100 : (tasksDone / projectTasks.length) * 100 || 0;
-    
     const mainNote = project?.notes.find(n => !n.parentId);
     
     const filteredProjectTasks = projectTasks.filter(task => statusFilters.includes(task.status));
 
-    return { tasksToDo, tasksInProgress, tasksDone, totalStoryPoints, completedStoryPoints, progress, mainNote, filteredProjectTasks };
+    return { mainNote, filteredProjectTasks };
   }, [projectTasks, project, statusFilters]);
 
   const handleStatusFilterChange = (status: TaskStatus, checked: boolean) => {
@@ -252,16 +239,56 @@ export default function ProjectPage() {
                       return (
                         <TableRow
                           key={task.id}
-                          onClick={() => setSelectedTask(task)}
-                          className="cursor-pointer"
                         >
-                          <TableCell>{task.title}</TableCell>
-                          <TableCell><Badge variant="outline">{task.status}</Badge></TableCell>
-                          <TableCell>{task.storyPoints}</TableCell>
-                          <TableCell>
-                            {task.deadline ? new Date(task.deadline).toLocaleDateString() : "N/A"}
+                          <TableCell 
+                            onClick={() => setSelectedTask(task)}
+                            className="cursor-pointer font-medium hover:underline"
+                          >
+                            {task.title}
                           </TableCell>
                           <TableCell>
+                            <Select 
+                              value={task.status} 
+                              onValueChange={(newStatus: TaskStatus) => updateTask(task.id, { status: newStatus })}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="To Do">To Do</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Done">Done</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell onClick={() => setSelectedTask(task)} className="cursor-pointer">
+                            {task.storyPoints}
+                          </TableCell>
+                          <TableCell>
+                             <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant={"outline"}
+                                  className={cn(
+                                    "w-36 justify-start text-left font-normal",
+                                    !task.deadline && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {task.deadline ? format(new Date(task.deadline), "PPP") : <span>No date</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  selected={task.deadline ? new Date(task.deadline) : undefined}
+                                  onSelect={(date) => updateTask(task.id, { deadline: date?.toISOString() })}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </TableCell>
+                          <TableCell onClick={() => setSelectedTask(task)} className="cursor-pointer">
                             <Progress value={progress} className="w-[100px]" />
                           </TableCell>
                         </TableRow>
