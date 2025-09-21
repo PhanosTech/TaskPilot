@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useContext } from "react";
+import { useState, useMemo, useContext, useEffect } from "react";
 import { KanbanBoard } from "@/components/board/kanban-board";
 import type { Task, TaskStatus } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,25 +20,24 @@ export default function BoardPage() {
     addLog 
   } = useContext(DataContext);
   
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return tasks.find(t => t.id === selectedTaskId) || null;
+  }, [selectedTaskId, tasks]);
 
   const inProgressProjects = useMemo(() => projects.filter(p => p.status === 'In Progress'), [projects]);
 
   const handleCreateTask = (newTaskData: Omit<Task, 'id' | 'logs'>) => {
     // projectId should be set in the data
     if (newTaskData.projectId) {
-       createTask(newTaskData.projectId, newTaskData);
+       createTask(newTaskData);
     }
   };
 
   const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
     updateTask(taskId, updatedData);
-    if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask(prevSelectedTask =>
-        prevSelectedTask ? { ...prevSelectedTask, ...updatedData } : null
-      );
-    }
   };
 
   const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
@@ -64,6 +63,12 @@ export default function BoardPage() {
     
     return []; // Return empty if a non-in-progress project is somehow selected
   }, [selectedProjectId, tasks, inProgressProjects]);
+  
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+
+  const handleTaskSelect = (task: Task) => {
+    setSelectedTaskId(task.id);
+  };
 
 
   return (
@@ -88,7 +93,7 @@ export default function BoardPage() {
         tasks={filteredTasks} 
         onTaskStatusChange={updateTaskStatus}
         onCreateTask={handleCreateTask}
-        onTaskSelect={setSelectedTask}
+        onTaskSelect={handleTaskSelect}
         selectedProjectId={selectedProjectId}
       />
       
@@ -96,7 +101,7 @@ export default function BoardPage() {
         <TaskDetailDialog 
           task={selectedTask} 
           open={!!selectedTask} 
-          onOpenChange={(isOpen) => !isOpen && setSelectedTask(null)}
+          onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
           onSubtaskChange={handleSubtaskChange}
           onAddSubtask={addSubtask}

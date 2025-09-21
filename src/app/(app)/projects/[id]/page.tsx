@@ -71,9 +71,14 @@ export default function ProjectPage() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [statusFilters, setStatusFilters] = useState<TaskStatus[]>(['To Do', 'In Progress']);
 
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return tasks.find(t => t.id === selectedTaskId) || null;
+  }, [selectedTaskId, tasks]);
+  
   useEffect(() => {
     const currentProject = projects.find((p) => p.id === id);
     if (currentProject) {
@@ -118,9 +123,6 @@ export default function ProjectPage() {
 
   const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
     updateTask(taskId, updatedData);
-    if (selectedTask?.id === taskId) {
-      setSelectedTask(prev => prev ? {...prev, ...updatedData} : null);
-    }
   };
   
   const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
@@ -249,7 +251,7 @@ export default function ProjectPage() {
                           key={task.id}
                         >
                           <TableCell 
-                            onClick={() => setSelectedTask(task)}
+                            onClick={() => setSelectedTaskId(task.id)}
                             className="cursor-pointer font-medium hover:underline"
                           >
                             {task.title}
@@ -269,7 +271,7 @@ export default function ProjectPage() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell onClick={() => setSelectedTask(task)} className="cursor-pointer">
+                          <TableCell onClick={() => setSelectedTaskId(task.id)} className="cursor-pointer">
                             {task.storyPoints}
                           </TableCell>
                           <TableCell>
@@ -296,7 +298,7 @@ export default function ProjectPage() {
                               </PopoverContent>
                             </Popover>
                           </TableCell>
-                          <TableCell onClick={() => setSelectedTask(task)} className="cursor-pointer">
+                          <TableCell onClick={() => setSelectedTaskId(task.id)} className="cursor-pointer">
                             <Progress value={progress} className="w-[100px]" />
                           </TableCell>
                         </TableRow>
@@ -333,7 +335,7 @@ export default function ProjectPage() {
         <TaskDetailDialog
           task={selectedTask}
           open={!!selectedTask}
-          onOpenChange={(isOpen) => !isOpen && setSelectedTask(null)}
+          onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
           onSubtaskChange={handleSubtaskChange}
           onAddSubtask={addSubtask}

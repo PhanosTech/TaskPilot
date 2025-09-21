@@ -59,10 +59,15 @@ export default function DashboardPage() {
     removeSubtask, 
     addLog 
   } = useContext(DataContext);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showToDo, setShowToDo] = useState(false);
   const [scratchpadContent, setScratchpadContent] = useState("");
   const router = useRouter();
+  
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return tasks.find(t => t.id === selectedTaskId) || null;
+  }, [selectedTaskId, tasks]);
 
   // Load scratchpad from localStorage on initial render
   useEffect(() => {
@@ -140,7 +145,7 @@ export default function DashboardPage() {
   };
 
   const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
+    setSelectedTaskId(task.id);
   };
 
   const handleTaskDoubleClick = (projectId: string) => {
@@ -330,7 +335,7 @@ export default function DashboardPage() {
             <TaskDetailDialog 
               task={selectedTask} 
               open={!!selectedTask} 
-              onOpenChange={(isOpen) => !isOpen && setSelectedTask(null)}
+              onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
               onUpdateTask={updateTask}
               onSubtaskChange={handleSubtaskChange}
               onAddSubtask={addSubtask}
