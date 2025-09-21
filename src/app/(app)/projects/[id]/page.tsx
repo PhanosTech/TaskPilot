@@ -4,7 +4,7 @@
 import { useContext, useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DataContext } from "@/context/data-context";
-import { Project, Task, Note, ProjectStatus } from "@/lib/types";
+import { Project, Task, Note, ProjectStatus, TaskStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -38,6 +38,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NoteRenderer } from "@/components/projects/note-renderer";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -58,6 +61,7 @@ export default function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [statusFilters, setStatusFilters] = useState<TaskStatus[]>(['To Do', 'In Progress']);
 
   useEffect(() => {
     const currentProject = projects.find((p) => p.id === id);
@@ -75,7 +79,8 @@ export default function ProjectPage() {
     totalStoryPoints,
     completedStoryPoints,
     progress,
-    mainNote
+    mainNote,
+    filteredProjectTasks
   } = useMemo(() => {
     const tasksToDo = projectTasks.filter(t => t.status === 'To Do').length;
     const tasksInProgress = projectTasks.filter(t => t.status === 'In Progress').length;
@@ -89,9 +94,21 @@ export default function ProjectPage() {
     const progress = totalStoryPoints > 0 ? (completedStoryPoints / totalStoryPoints) * 100 : (tasksDone / projectTasks.length) * 100 || 0;
     
     const mainNote = project?.notes.find(n => !n.parentId);
+    
+    const filteredProjectTasks = projectTasks.filter(task => statusFilters.includes(task.status));
 
-    return { tasksToDo, tasksInProgress, tasksDone, totalStoryPoints, completedStoryPoints, progress, mainNote };
-  }, [projectTasks, project]);
+    return { tasksToDo, tasksInProgress, tasksDone, totalStoryPoints, completedStoryPoints, progress, mainNote, filteredProjectTasks };
+  }, [projectTasks, project, statusFilters]);
+
+  const handleStatusFilterChange = (status: TaskStatus, checked: boolean) => {
+    setStatusFilters(prev => {
+      if (checked) {
+        return [...prev, status];
+      } else {
+        return prev.filter(s => s !== status);
+      }
+    });
+  };
 
   const handleStatusChange = (newStatus: ProjectStatus) => {
     if (project) {
@@ -193,7 +210,20 @@ export default function ProjectPage() {
               </CreateTaskDialog>
             </div>
             <TabsContent value="tasks">
-              <div className="border rounded-lg">
+               <div className="flex items-center gap-4 my-4">
+                  <Label>Filter by status:</Label>
+                  {(['To Do', 'In Progress', 'Done'] as TaskStatus[]).map(status => (
+                    <div key={status} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`filter-${status}`}
+                        checked={statusFilters.includes(status)}
+                        onCheckedChange={(checked) => handleStatusFilterChange(status, !!checked)}
+                      />
+                      <Label htmlFor={`filter-${status}`}>{status}</Label>
+                    </div>
+                  ))}
+              </div>
+              <ScrollArea className="h-[500px] border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -205,7 +235,7 @@ export default function ProjectPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {projectTasks.map((task) => {
+                    {filteredProjectTasks.map((task) => {
                       const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
                       const completedSubtaskPoints = task.subtasks
                         .filter(st => st.isCompleted)
@@ -238,7 +268,7 @@ export default function ProjectPage() {
                     })}
                   </TableBody>
                 </Table>
-              </div>
+              </ScrollArea>
             </TabsContent>
             <TabsContent value="notes">
               <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
@@ -307,3 +337,5 @@ export default function ProjectPage() {
     </div>
   );
 }
+
+    
