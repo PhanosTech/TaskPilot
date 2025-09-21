@@ -41,7 +41,7 @@ const taskSchema = z.object({
   description: z.string().optional(),
   deadline: z.date().optional(),
   priority: z.enum(["Low", "Medium", "High"]),
-  storyPoints: z.coerce.number().min(0).optional(),
+  storyPoints: z.coerce.number().min(1, "Story points must be at least 1").max(10, "Story points cannot be more than 10"),
   subtasks: z.array(z.object({
     title: z.string().min(1, "Subtask title cannot be empty"),
     storyPoints: z.coerce.number().min(0),
@@ -84,7 +84,7 @@ export function CreateTaskDialog({
       title: "",
       description: "",
       priority: "Medium",
-      storyPoints: 0,
+      storyPoints: 2,
       subtasks: [],
       status: defaultStatus,
       projectId: defaultProjectId,
@@ -97,7 +97,7 @@ export function CreateTaskDialog({
       title: "",
       description: "",
       priority: "Medium",
-      storyPoints: 0,
+      storyPoints: 2,
       subtasks: [],
       deadline: addDays(new Date(), 4),
       status: defaultStatus,
@@ -288,7 +288,7 @@ export function CreateTaskDialog({
                   <FormItem>
                     <FormLabel>Story Points</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g. 5" {...field} />
+                      <Input type="number" min="1" max="10" placeholder="e.g. 2" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

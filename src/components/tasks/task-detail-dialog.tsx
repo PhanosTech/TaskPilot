@@ -104,13 +104,18 @@ export function TaskDetailDialog({
       });
       return;
     }
+
+    let points = storyPoints;
+    if (points < 1) points = 1;
+    if (points > 10) points = 10;
+    
     onUpdateTask(task.id, { 
       title, 
       description, 
       status,
       priority,
       deadline: deadline.toISOString(),
-      storyPoints,
+      storyPoints: points,
       subtasks,
     });
     toast({
@@ -180,7 +185,7 @@ export function TaskDetailDialog({
                 </div>
                 <div className="flex flex-col space-y-2">
                     <Label>Story Points</Label>
-                    <Input type="number" value={storyPoints} onChange={(e) => setStoryPoints(Number(e.target.value))} />
+                    <Input type="number" min="1" max="10" value={storyPoints} onChange={(e) => setStoryPoints(Number(e.target.value))} />
                 </div>
                  <div className="flex flex-col space-y-2">
                     <Label>Deadline</Label>
