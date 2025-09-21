@@ -42,7 +42,7 @@ export type Task = {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  deadline: string; 
+  deadline?: string; 
   projectId: string;
   storyPoints: number;
   subtasks: Subtask[];

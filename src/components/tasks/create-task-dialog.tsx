@@ -37,9 +37,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { DataContext } from "@/context/data-context";
 
 const taskSchema = z.object({
-  name: z.string().min(1, "Task name is required"),
+  title: z.string().min(1, "Task name is required"),
   description: z.string().optional(),
-  dueDate: z.date().optional(),
+  deadline: z.date().optional(),
   priority: z.enum(["Low", "Medium", "High"]),
   storyPoints: z.coerce.number().min(0).optional(),
   subtasks: z.array(z.object({
@@ -48,7 +48,6 @@ const taskSchema = z.object({
   })).optional(),
   projectId: z.string().min(1, "A project is required."),
   status: z.enum(["To Do", "In Progress", "Done"]),
-  assignee: z.string().optional(),
 });
 
 type TaskFormValues = z.infer<typeof taskSchema>;
@@ -73,7 +72,7 @@ export function CreateTaskDialog({
   const { projects } = useContext(DataContext);
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const setOpen = setControlledOpen ?? internalOpen;
+  const setOpen = setControlledOpen ?? setInternalOpen;
   
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskPoints, setNewSubtaskPoints] = useState(0);
@@ -82,28 +81,26 @@ export function CreateTaskDialog({
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
-      name: "",
+      title: "",
       description: "",
       priority: "Medium",
       storyPoints: 0,
       subtasks: [],
       status: defaultStatus,
       projectId: defaultProjectId,
-      assignee: "",
     },
   });
 
   useEffect(() => {
     form.reset({
-      name: "",
+      title: "",
       description: "",
       priority: "Medium",
       storyPoints: 0,
       subtasks: [],
-      dueDate: undefined,
+      deadline: undefined,
       status: defaultStatus,
       projectId: defaultProjectId,
-      assignee: "",
     });
   }, [open, defaultStatus, defaultProjectId, form]);
 
@@ -131,13 +128,13 @@ export function CreateTaskDialog({
 
     onTaskCreated({ 
       ...data,
-      dueDate: data.dueDate?.toISOString(),
+      deadline: data.deadline?.toISOString(),
       subtasks: finalSubtasks,
     });
 
     toast({
       title: "Task Created",
-      description: `Task "${data.name}" has been created successfully.`,
+      description: `Task "${data.title}" has been created successfully.`,
     });
     setOpen(false);
     form.reset();
@@ -192,7 +189,7 @@ export function CreateTaskDialog({
             
             <FormField
               control={form.control}
-              name="name"
+              name="title"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Task Name</FormLabel>
@@ -222,26 +219,28 @@ export function CreateTaskDialog({
             <div className="grid grid-cols-2 gap-4">
                <FormField
                 control={form.control}
-                name="dueDate"
+                name="deadline"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
@@ -281,20 +280,7 @@ export function CreateTaskDialog({
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="assignee"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assignee</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Jane Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
+               <FormField
                 control={form.control}
                 name="storyPoints"
                 render={({ field }) => (

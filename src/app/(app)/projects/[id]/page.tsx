@@ -4,9 +4,8 @@
 import { useContext, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DataContext } from "@/context/data-context";
-import { Project, Task, Note } from "@/lib/types";
+import { Project, Task, Note, ProjectStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -33,15 +32,27 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
-import { NotesEditor } from "@/components/projects/notes-editor";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
-import { Pencil } from "lucide-react";
+import { NotesTabContent } from "@/components/projects/notes-tab-content";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 export default function ProjectPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { projects, tasks, updateProject, deleteProject, updateTask, createTask, deleteTask } =
-    useContext(DataContext);
+  const { 
+    projects, 
+    tasks, 
+    updateProject, 
+    deleteProject, 
+    updateTask, 
+    createTask, 
+    deleteTask,
+    addSubtask,
+    removeSubtask,
+    addLog,
+  } = useContext(DataContext);
+  
   const [project, setProject] = useState<Project | null>(null);
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -55,10 +66,9 @@ export default function ProjectPage() {
     }
   }, [id, projects, tasks]);
 
-  const handleStatusChange = (newStatus: "not started" | "in progress" | "completed") => {
+  const handleStatusChange = (newStatus: ProjectStatus) => {
     if (project) {
-      const updatedProject = { ...project, status: newStatus };
-      updateProject(project.id, updatedProject);
+      updateProject(project.id, { status: newStatus });
     }
   };
 
@@ -66,16 +76,23 @@ export default function ProjectPage() {
     createTask(newTask);
   };
 
-  const handleTaskUpdated = (updatedTask: Task) => {
-    updateTask(updatedTask.id, updatedTask);
-    setSelectedTask(null);
+  const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
+    updateTask(taskId, updatedData);
+    if (selectedTask?.id === taskId) {
+      setSelectedTask(prev => prev ? {...prev, ...updatedData} : null);
+    }
   };
   
-  const handleTaskDeleted = (taskId: string) => {
-    deleteTask(taskId);
-    setSelectedTask(null);
-  };
+  const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
 
+    const newSubtasks = task.subtasks.map(subtask =>
+      subtask.id === subtaskId ? { ...subtask, isCompleted } : subtask
+    );
+    updateTask(taskId, { subtasks: newSubtasks });
+  };
+  
   const handleNotesChange = (newNotes: Note[]) => {
     if (project) {
       updateProject(project.id, { notes: newNotes });
@@ -122,9 +139,10 @@ export default function ProjectPage() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="not started">Not Started</SelectItem>
-              <SelectItem value="in progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="In Progress">In Progress</SelectItem>
+              <SelectItem value="Backlog">Backlog</SelectItem>
+              <SelectItem value="Done">Done</SelectItem>
+              <SelectItem value="Archived">Archived</SelectItem>
             </SelectContent>
           </Select>
           <EditProjectDialog 
@@ -150,44 +168,64 @@ export default function ProjectPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Title</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead>Assignee</TableHead>
-                  <TableHead>Due Date</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Progress</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {projectTasks.map((task) => (
-                  <TableRow
-                    key={task.id}
-                    onClick={() => setSelectedTask(task)}
-                    className="cursor-pointer"
-                  >
-                    <TableCell>{task.name}</TableCell>
-                    <TableCell>{task.status}</TableCell>
-                    <TableCell>{task.priority}</TableCell>
-                    <TableCell>{task.assignee}</TableCell>
-                    <TableCell>
-                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "N/A"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {projectTasks.map((task) => {
+                  const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+                  const completedSubtaskPoints = task.subtasks
+                    .filter(st => st.isCompleted)
+                    .reduce((sum, st) => sum + st.storyPoints, 0);
+
+                  let progress = 0;
+                  if (task.status === 'Done') {
+                    progress = 100;
+                  } else if (totalSubtaskPoints > 0) {
+                    progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
+                  }
+
+                  return (
+                    <TableRow
+                      key={task.id}
+                      onClick={() => setSelectedTask(task)}
+                      className="cursor-pointer"
+                    >
+                      <TableCell>{task.title}</TableCell>
+                      <TableCell><Badge variant="outline">{task.status}</Badge></TableCell>
+                      <TableCell>{task.priority}</TableCell>
+                      <TableCell>
+                        {task.deadline ? new Date(task.deadline).toLocaleDateString() : "N/A"}
+                      </TableCell>
+                       <TableCell>
+                        <Progress value={progress} className="w-[100px]" />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         </TabsContent>
         <TabsContent value="notes">
-          <NotesEditor initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
+          <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
         </TabsContent>
       </Tabs>
       
       {selectedTask && (
         <TaskDetailDialog
           task={selectedTask}
-          onTaskUpdated={handleTaskUpdated}
-          onTaskDeleted={handleTaskDeleted}
-          onOpenChange={() => setSelectedTask(null)}
+          open={!!selectedTask}
+          onOpenChange={(isOpen) => !isOpen && setSelectedTask(null)}
+          onUpdateTask={handleUpdateTask}
+          onSubtaskChange={handleSubtaskChange}
+          onAddSubtask={addSubtask}
+          onRemoveSubtask={removeSubtask}
+          onAddLog={addLog}
         />
       )}
     </div>
