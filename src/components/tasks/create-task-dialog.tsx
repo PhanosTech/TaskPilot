@@ -41,7 +41,6 @@ const taskSchema = z.object({
   description: z.string().optional(),
   deadline: z.date().optional(),
   priority: z.enum(["Low", "Medium", "High"]),
-  storyPoints: z.coerce.number().min(1, "Story points must be at least 1").max(5, "Story points cannot be more than 5"),
   subtasks: z.array(z.object({
     title: z.string().min(1, "Subtask title cannot be empty"),
     storyPoints: z.coerce.number().min(1).max(5),
@@ -53,7 +52,7 @@ const taskSchema = z.object({
 type TaskFormValues = z.infer<typeof taskSchema>;
 
 interface CreateTaskDialogProps {
-  onTaskCreated: (data: Omit<Task, 'id' | 'logs'>) => void;
+  onTaskCreated: (data: Omit<Task, 'id' | 'logs' | 'storyPoints'>) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   children?: ReactNode;
@@ -84,7 +83,6 @@ export function CreateTaskDialog({
       title: "",
       description: "",
       priority: "Medium",
-      storyPoints: 2,
       subtasks: [],
       status: defaultStatus,
       projectId: defaultProjectId,
@@ -98,7 +96,6 @@ export function CreateTaskDialog({
         title: "",
         description: "",
         priority: "Medium",
-        storyPoints: 2,
         subtasks: [],
         deadline: addDays(new Date(), 4),
         status: defaultStatus,
@@ -280,22 +277,6 @@ export function CreateTaskDialog({
                           <SelectItem value="High">High</SelectItem>
                         </SelectContent>
                       </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-               <FormField
-                control={form.control}
-                name="storyPoints"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Story Points</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="1" max="5" placeholder="e.g. 2" {...field} />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

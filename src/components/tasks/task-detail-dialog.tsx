@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { Task, TaskStatus, TaskPriority, Subtask } from "@/lib/types";
 import {
   Dialog,
@@ -70,13 +70,16 @@ export function TaskDetailDialog({
   const [deadline, setDeadline] = useState<Date | undefined>(
     task.deadline ? new Date(task.deadline) : addDays(new Date(), 4)
   );
-  const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   
   const [newLog, setNewLog] = useState("");
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
 
   const { toast } = useToast();
+  
+  const storyPoints = useMemo(() => {
+    return task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+  }, [task.subtasks]);
 
   useEffect(() => {
     if (open) {
@@ -85,12 +88,11 @@ export function TaskDetailDialog({
       setStatus(task.status);
       setPriority(task.priority);
       setDeadline(task.deadline ? new Date(task.deadline) : addDays(new Date(), 4));
-      setStoryPoints(task.storyPoints);
     }
   }, [open, task]);
 
   const completedSubtasks = task.subtasks.filter(st => st.isCompleted).length;
-  const totalStoryPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+  const totalSubtaskStoryPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
   const completedStoryPoints = task.subtasks.filter(st => st.isCompleted).reduce((sum, st) => sum + st.storyPoints, 0);
 
   const handleSaveChanges = () => {
@@ -102,10 +104,6 @@ export function TaskDetailDialog({
       });
       return;
     }
-
-    let points = storyPoints;
-    if (points < 1) points = 1;
-    if (points > 5) points = 5;
     
     onUpdateTask(task.id, { 
       title, 
@@ -113,7 +111,7 @@ export function TaskDetailDialog({
       status,
       priority,
       deadline: deadline.toISOString(),
-      storyPoints: points,
+      storyPoints: storyPoints,
     });
     toast({
       title: "Task Updated",
@@ -193,7 +191,7 @@ export function TaskDetailDialog({
                 </div>
                 <div className="flex flex-col space-y-2">
                     <Label>Story Points</Label>
-                    <Input type="number" min="1" max="5" value={storyPoints} onChange={(e) => setStoryPoints(Number(e.target.value))} />
+                    <Input type="number" value={storyPoints} disabled />
                 </div>
                  <div className="flex flex-col space-y-2">
                     <Label>Due Date</Label>
@@ -224,7 +222,7 @@ export function TaskDetailDialog({
           
             <div>
                 <h3 className="mb-2 font-semibold">
-                    Subtasks ({completedSubtasks}/{task.subtasks.length}) - {completedStoryPoints}/{totalStoryPoints} pts
+                    Subtasks ({completedSubtasks}/{task.subtasks.length}) - {completedStoryPoints}/{totalSubtaskStoryPoints} pts
                 </h3>
                 <div className="space-y-2">
                     {task.subtasks.map((subtask) => (

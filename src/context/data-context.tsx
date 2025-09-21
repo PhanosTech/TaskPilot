@@ -25,7 +25,7 @@ interface DataContextType {
   updateProject: (projectId: string, data: Partial<Project>) => void;
   deleteProject: (projectId: string) => void;
   getProjectTasks: (projectId: string) => Task[];
-  createTask: (data: Omit<Task, 'id' | 'logs'>) => void;
+  createTask: (data: Omit<Task, 'id' | 'logs' | 'storyPoints'>) => void;
   updateTask: (taskId: string, data: Partial<Task>) => void;
   deleteTask: (taskId: string) => void;
   updateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
@@ -124,19 +124,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return tasks.filter(task => task.projectId === projectId);
   }, [tasks]);
 
-  const createTask = useCallback((data: Omit<Task, 'id' | 'logs'>) => {
+  const createTask = useCallback((data: Omit<Task, 'id' | 'logs' | 'storyPoints'>) => {
+    const subtasks = data.subtasks || [];
+    const storyPoints = subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
     const newTask: Task = {
       id: `task-${Date.now()}`,
       logs: [],
-      subtasks: data.subtasks || [],
       ...data,
+      subtasks,
+      storyPoints,
     };
     setTasks(prev => [...prev, newTask]);
   }, []);
   
   const updateTask = useCallback((taskId: string, data: Partial<Task>) => {
     setTasks(prev =>
-      prev.map(t => (t.id === taskId ? { ...t, ...data } : t))
+      prev.map(t => {
+        if (t.id === taskId) {
+          const updatedTask = { ...t, ...data };
+          // Recalculate story points if subtasks are part of the update
+          if (data.subtasks) {
+            updatedTask.storyPoints = data.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+          }
+          return updatedTask;
+        }
+        return t;
+      })
     );
   }, []);
   
@@ -153,11 +166,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updateSubtask = useCallback((taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
     setTasks(prev => prev.map(task => {
       if (task.id === taskId) {
+        const newSubtasks = task.subtasks.map(subtask => 
+          subtask.id === subtaskId ? { ...subtask, ...changes } : subtask
+        );
+        const newStoryPoints = newSubtasks.reduce((sum, st) => sum + st.storyPoints, 0);
         return {
           ...task,
-          subtasks: task.subtasks.map(subtask => 
-            subtask.id === subtaskId ? { ...subtask, ...changes } : subtask
-          )
+          subtasks: newSubtasks,
+          storyPoints: newStoryPoints,
         };
       }
       return task;
@@ -174,7 +190,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             isCompleted: false,
             storyPoints,
           };
-          return { ...task, subtasks: [...task.subtasks, newSubtask] };
+          const newSubtasks = [...task.subtasks, newSubtask];
+          const newStoryPoints = newSubtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+          return { ...task, subtasks: newSubtasks, storyPoints: newStoryPoints };
         }
         return task;
       })
@@ -185,7 +203,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
      setTasks(prev =>
       prev.map(task => {
         if (task.id === taskId) {
-          return { ...task, subtasks: task.subtasks.filter(st => st.id !== subtaskId) };
+          const newSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
+          const newStoryPoints = newSubtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+          return { ...task, subtasks: newSubtasks, storyPoints: newStoryPoints };
         }
         return task;
       })
