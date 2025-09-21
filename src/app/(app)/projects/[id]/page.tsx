@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DataContext } from "@/context/data-context";
 import { Project, Task, Note, ProjectStatus } from "@/lib/types";
@@ -36,6 +36,8 @@ import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { NotesTabContent } from "@/components/projects/notes-tab-content";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { NoteRenderer } from "@/components/projects/note-renderer";
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -65,6 +67,31 @@ export default function ProjectPage() {
       setProjectTasks(filteredTasks);
     }
   }, [id, projects, tasks]);
+
+  const {
+    tasksToDo,
+    tasksInProgress,
+    tasksDone,
+    totalStoryPoints,
+    completedStoryPoints,
+    progress,
+    mainNote
+  } = useMemo(() => {
+    const tasksToDo = projectTasks.filter(t => t.status === 'To Do').length;
+    const tasksInProgress = projectTasks.filter(t => t.status === 'In Progress').length;
+    const tasksDone = projectTasks.filter(t => t.status === 'Done').length;
+
+    const totalStoryPoints = projectTasks.reduce((sum, task) => sum + task.storyPoints, 0);
+    const completedStoryPoints = projectTasks.reduce((sum, task) => {
+      if (task.status === 'Done') return sum + task.storyPoints;
+      return sum;
+    }, 0);
+    const progress = totalStoryPoints > 0 ? (completedStoryPoints / totalStoryPoints) * 100 : (tasksDone / projectTasks.length) * 100 || 0;
+    
+    const mainNote = project?.notes.find(n => !n.parentId);
+
+    return { tasksToDo, tasksInProgress, tasksDone, totalStoryPoints, completedStoryPoints, progress, mainNote };
+  }, [projectTasks, project]);
 
   const handleStatusChange = (newStatus: ProjectStatus) => {
     if (project) {
@@ -153,69 +180,118 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="tasks">
-        <div className="flex justify-between items-center">
-          <TabsList>
-            <TabsTrigger value="tasks">Tasks</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
-          </TabsList>
-          <CreateTaskDialog onTaskCreated={handleTaskCreated} defaultProjectId={project.id}>
-            <Button>Add Task</Button>
-          </CreateTaskDialog>
-        </div>
-        <TabsContent value="tasks">
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Progress</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projectTasks.map((task) => {
-                  const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
-                  const completedSubtaskPoints = task.subtasks
-                    .filter(st => st.isCompleted)
-                    .reduce((sum, st) => sum + st.storyPoints, 0);
-
-                  let progress = 0;
-                  if (task.status === 'Done') {
-                    progress = 100;
-                  } else if (totalSubtaskPoints > 0) {
-                    progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
-                  }
-
-                  return (
-                    <TableRow
-                      key={task.id}
-                      onClick={() => setSelectedTask(task)}
-                      className="cursor-pointer"
-                    >
-                      <TableCell>{task.title}</TableCell>
-                      <TableCell><Badge variant="outline">{task.status}</Badge></TableCell>
-                      <TableCell>{task.priority}</TableCell>
-                      <TableCell>
-                        {task.deadline ? new Date(task.deadline).toLocaleDateString() : "N/A"}
-                      </TableCell>
-                       <TableCell>
-                        <Progress value={progress} className="w-[100px]" />
-                      </TableCell>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <Tabs defaultValue="tasks">
+            <div className="flex justify-between items-center">
+              <TabsList>
+                <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
+              </TabsList>
+              <CreateTaskDialog onTaskCreated={handleTaskCreated} defaultProjectId={project.id}>
+                <Button>Add Task</Button>
+              </CreateTaskDialog>
+            </div>
+            <TabsContent value="tasks">
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Deadline</TableHead>
+                      <TableHead>Progress</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-        <TabsContent value="notes">
-          <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
-        </TabsContent>
-      </Tabs>
+                  </TableHeader>
+                  <TableBody>
+                    {projectTasks.map((task) => {
+                      const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+                      const completedSubtaskPoints = task.subtasks
+                        .filter(st => st.isCompleted)
+                        .reduce((sum, st) => sum + st.storyPoints, 0);
+
+                      let progress = 0;
+                      if (task.status === 'Done') {
+                        progress = 100;
+                      } else if (totalSubtaskPoints > 0) {
+                        progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
+                      }
+
+                      return (
+                        <TableRow
+                          key={task.id}
+                          onClick={() => setSelectedTask(task)}
+                          className="cursor-pointer"
+                        >
+                          <TableCell>{task.title}</TableCell>
+                          <TableCell><Badge variant="outline">{task.status}</Badge></TableCell>
+                          <TableCell>{task.priority}</TableCell>
+                          <TableCell>
+                            {task.deadline ? new Date(task.deadline).toLocaleDateString() : "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            <Progress value={progress} className="w-[100px]" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+            <TabsContent value="notes">
+              <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <div className="lg:col-span-1">
+           <Card>
+            <CardHeader>
+              <CardTitle>Project Status</CardTitle>
+              <CardDescription>A quick overview of task progress.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm text-muted-foreground mb-1">
+                  <span>Overall Progress</span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+                <Progress value={progress} />
+                 <p className="text-xs text-muted-foreground mt-1">{completedStoryPoints} of {totalStoryPoints} story points completed.</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Tasks To Do</span>
+                  <Badge variant="outline">{tasksToDo}</Badge>
+                </div>
+                 <div className="flex justify-between items-center">
+                  <span className="text-sm">Tasks In Progress</span>
+                  <Badge variant="outline">{tasksInProgress}</Badge>
+                </div>
+                 <div className="flex justify-between items-center">
+                  <span className="text-sm">Tasks Done</span>
+                  <Badge variant="default">{tasksDone}</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
       
+      {mainNote && (
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>{mainNote.title}</CardTitle>
+            <CardDescription>An overview note for this project.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NoteRenderer content={mainNote.content} />
+          </CardContent>
+        </Card>
+      )}
+
       {selectedTask && (
         <TaskDetailDialog
           task={selectedTask}
