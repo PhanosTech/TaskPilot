@@ -72,7 +72,7 @@ export function CreateTaskDialog({
   const { projects } = useContext(DataContext);
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const setOpen = setControlledOpen ?? setInternalOpen;
+  const setOpen = setControlledOpen ?? internalOpen;
   
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
@@ -93,16 +93,20 @@ export function CreateTaskDialog({
   });
 
   useEffect(() => {
-    form.reset({
-      title: "",
-      description: "",
-      priority: "Medium",
-      storyPoints: 2,
-      subtasks: [],
-      deadline: addDays(new Date(), 4),
-      status: defaultStatus,
-      projectId: defaultProjectId,
-    });
+    if (open) {
+      form.reset({
+        title: "",
+        description: "",
+        priority: "Medium",
+        storyPoints: 2,
+        subtasks: [],
+        deadline: addDays(new Date(), 4),
+        status: defaultStatus,
+        projectId: defaultProjectId,
+      });
+      setNewSubtaskTitle("");
+      setNewSubtaskPoints(2);
+    }
   }, [open, defaultStatus, defaultProjectId, form]);
 
   const { fields, append, remove } = useFieldArray({
@@ -139,6 +143,8 @@ export function CreateTaskDialog({
     });
     setOpen(false);
     form.reset();
+    setNewSubtaskTitle("");
+    setNewSubtaskPoints(2);
   };
 
   const trigger = children ? (
