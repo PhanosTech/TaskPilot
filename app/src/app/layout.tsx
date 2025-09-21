@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
-import { DataProvider } from '@/context/data-context';
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/700.css";
 import "./globals.css";
@@ -38,10 +37,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <DataProvider>
-            {children}
-            <Toaster />
-          </DataProvider>
+          {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
