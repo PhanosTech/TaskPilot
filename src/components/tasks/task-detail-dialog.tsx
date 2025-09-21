@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import type { Task, TaskStatus, TaskPriority, Subtask } from "@/lib/types";
+import type { Task, TaskStatus, TaskPriority, Subtask, Log } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { Input } from "../ui/input";
-import { Calendar as CalendarIcon, X } from "lucide-react";
+import { Calendar as CalendarIcon, X, Edit2, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -46,6 +46,8 @@ interface TaskDetailDialogProps {
   onRemoveSubtask: (taskId: string, subtaskId: string) => void;
   /** Callback to add a new work log to the current task. */
   onAddLog: (taskId: string, logContent: string) => void;
+  /** Callback to update an existing work log. */
+  onUpdateLog: (taskId: string, logId: string, newContent: string) => void;
 }
 
 /**
@@ -62,6 +64,7 @@ export function TaskDetailDialog({
   onAddSubtask,
   onRemoveSubtask,
   onAddLog,
+  onUpdateLog,
 }: TaskDetailDialogProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
@@ -74,6 +77,9 @@ export function TaskDetailDialog({
   const [newLog, setNewLog] = useState("");
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
+  
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [editingLogContent, setEditingLogContent] = useState("");
 
   const { toast } = useToast();
   
@@ -88,6 +94,7 @@ export function TaskDetailDialog({
       setStatus(task.status);
       setPriority(task.priority);
       setDeadline(task.deadline ? new Date(task.deadline) : addDays(new Date(), 4));
+      setEditingLogId(null);
     }
   }, [open, task]);
 
@@ -147,6 +154,23 @@ export function TaskDetailDialog({
   
   const handleSubtaskTitleChange = (subtaskId: string, title: string) => {
     onSubtaskChange(task.id, subtaskId, { title });
+  };
+
+  const handleStartEditLog = (log: Log) => {
+    setEditingLogId(log.id);
+    setEditingLogContent(log.content);
+  };
+
+  const handleCancelEditLog = () => {
+    setEditingLogId(null);
+    setEditingLogContent("");
+  };
+
+  const handleSaveLog = () => {
+    if (editingLogId && editingLogContent.trim()) {
+      onUpdateLog(task.id, editingLogId, editingLogContent.trim());
+      handleCancelEditLog();
+    }
   };
 
 
@@ -284,22 +308,49 @@ export function TaskDetailDialog({
               <h3 className="mb-2 font-semibold">Work Logs</h3>
               <div className="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2">
                 {task.logs.slice().reverse().map(log => (
-                  <div key={log.id} className="text-sm text-muted-foreground">
-                   <p className="font-medium text-foreground">{log.content}</p>
-                   <p>{new Date(log.createdAt).toLocaleString()}</p>
+                  <div key={log.id} className="text-sm text-muted-foreground group">
+                    {editingLogId === log.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editingLogContent}
+                          onChange={(e) => setEditingLogContent(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveLog}>Save</Button>
+                          <Button size="sm" variant="outline" onClick={handleCancelEditLog}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="font-medium text-foreground">{log.content}</p>
+                        <div className="flex items-center justify-between">
+                            <p>{new Date(log.createdAt).toLocaleString()}</p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                              onClick={() => handleStartEditLog(log)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
                 {task.logs.length === 0 && <p className="text-sm text-muted-foreground">No logs yet.</p>}
               </div>
 
-              <div className="space-y-2">
-                 <Textarea 
-                    placeholder="Add a new work log..."
-                    value={newLog}
-                    onChange={(e) => setNewLog(e.target.value)}
-                 />
-                 <Button onClick={handleAddLog} disabled={!newLog.trim()}>Add Log</Button>
-              </div>
+              {editingLogId === null && (
+                <div className="space-y-2">
+                   <Textarea 
+                      placeholder="Add a new work log..."
+                      value={newLog}
+                      onChange={(e) => setNewLog(e.target.value)}
+                   />
+                   <Button onClick={handleAddLog} disabled={!newLog.trim()}>Add Log</Button>
+                </div>
+              )}
             </div>
         </div>
         <DialogFooter>

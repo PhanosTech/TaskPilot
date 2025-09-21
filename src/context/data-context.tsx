@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import type { Project, Task, Subtask, ProjectStatus, TaskStatus } from '@/lib/types';
+import type { Project, Task, Subtask, ProjectStatus, TaskStatus, Log } from '@/lib/types';
 
 // Debounce function to delay execution
 const debounce = <F extends (...args: any[]) => void>(func: F, delay: number) => {
@@ -33,6 +33,7 @@ interface DataContextType {
   addSubtask: (taskId: string, subtaskTitle: string, storyPoints: number) => void;
   removeSubtask: (taskId:string, subtaskId: string) => void;
   addLog: (taskId: string, logContent: string) => void;
+  updateLog: (taskId: string, logId: string, newContent: string) => void;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -51,6 +52,7 @@ export const DataContext = createContext<DataContextType>({
   addSubtask: () => {},
   removeSubtask: () => {},
   addLog: () => {},
+  updateLog: () => {},
 });
 
 export function DataProvider({ children }: { children: ReactNode }) {
@@ -216,12 +218,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTasks(prev =>
       prev.map(task => {
         if (task.id === taskId) {
-          const newLog = {
+          const newLog: Log = {
             id: `log-${Date.now()}`,
             content: logContent,
             createdAt: new Date().toISOString(),
           };
           return { ...task, logs: [...task.logs, newLog] };
+        }
+        return task;
+      })
+    );
+  }, []);
+
+  const updateLog = useCallback((taskId: string, logId: string, newContent: string) => {
+    setTasks(prev =>
+      prev.map(task => {
+        if (task.id === taskId) {
+          const newLogs = task.logs.map(log =>
+            log.id === logId ? { ...log, content: newContent } : log
+          );
+          return { ...task, logs: newLogs };
         }
         return task;
       })
@@ -244,6 +260,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addSubtask,
     removeSubtask,
     addLog,
+    updateLog,
   };
 
   if (isLoading) {

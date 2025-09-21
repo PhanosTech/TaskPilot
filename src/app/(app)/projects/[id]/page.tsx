@@ -61,13 +61,14 @@ export default function ProjectPage() {
     tasks, 
     updateProject, 
     deleteProject, 
-    updateTask, 
     createTask, 
+    updateTask, 
     deleteTask,
     updateSubtask,
     addSubtask,
     removeSubtask,
     addLog,
+    updateLog,
   } = useContext(DataContext);
   
   const [project, setProject] = useState<Project | null>(null);
@@ -336,6 +337,7 @@ export default function ProjectPage() {
           onAddSubtask={addSubtask}
           onRemoveSubtask={removeSubtask}
           onAddLog={addLog}
+          onUpdateLog={updateLog}
         />
       )}
     </div>
