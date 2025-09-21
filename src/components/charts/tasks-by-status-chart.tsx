@@ -12,7 +12,7 @@ interface TasksByStatusChartProps {
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   "To Do": "hsl(var(--muted-foreground) / 0.5)", 
-  "In Progress": "hsl(var(--chart-1))",
+  "In Progress": "hsl(var(--chart-3))",
   "Done": "hsl(var(--chart-2))", 
 };
 
