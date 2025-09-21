@@ -71,7 +71,6 @@ export function TaskDetailDialog({
     task.deadline ? new Date(task.deadline) : addDays(new Date(), 4)
   );
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
-  const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks);
   
   const [newLog, setNewLog] = useState("");
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
@@ -87,13 +86,12 @@ export function TaskDetailDialog({
       setPriority(task.priority);
       setDeadline(task.deadline ? new Date(task.deadline) : addDays(new Date(), 4));
       setStoryPoints(task.storyPoints);
-      setSubtasks(task.subtasks);
     }
   }, [open, task]);
 
-  const completedSubtasks = subtasks.filter(st => st.isCompleted).length;
-  const totalStoryPoints = subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
-  const completedStoryPoints = subtasks.filter(st => st.isCompleted).reduce((sum, st) => sum + st.storyPoints, 0);
+  const completedSubtasks = task.subtasks.filter(st => st.isCompleted).length;
+  const totalStoryPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+  const completedStoryPoints = task.subtasks.filter(st => st.isCompleted).reduce((sum, st) => sum + st.storyPoints, 0);
 
   const handleSaveChanges = () => {
     if (!deadline) {
@@ -116,7 +114,6 @@ export function TaskDetailDialog({
       priority,
       deadline: deadline.toISOString(),
       storyPoints: points,
-      subtasks,
     });
     toast({
       title: "Task Updated",
@@ -142,10 +139,6 @@ export function TaskDetailDialog({
       setNewSubtaskPoints(2);
     }
   };
-
-  const handleSubtaskFieldChange = (subtaskId: string, field: 'title' | 'storyPoints', value: string | number) => {
-    setSubtasks(prev => prev.map(st => st.id === subtaskId ? {...st, [field]: value} : st));
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,10 +212,10 @@ export function TaskDetailDialog({
           
             <div>
                 <h3 className="mb-2 font-semibold">
-                    Subtasks ({completedSubtasks}/{subtasks.length}) - {completedStoryPoints}/{totalStoryPoints} pts
+                    Subtasks ({completedSubtasks}/{task.subtasks.length}) - {completedStoryPoints}/{totalStoryPoints} pts
                 </h3>
                 <div className="space-y-2">
-                    {subtasks.map((subtask) => (
+                    {task.subtasks.map((subtask) => (
                         <div key={subtask.id} className="flex items-center space-x-2 group">
                             <Checkbox
                                 id={`subtask-${subtask.id}`}
@@ -231,18 +224,12 @@ export function TaskDetailDialog({
                                   onSubtaskChange(task.id, subtask.id, !!checked)
                                 }
                             />
-                            <Input
-                                value={subtask.title}
-                                onChange={(e) => handleSubtaskFieldChange(subtask.id, 'title', e.target.value)}
-                                className={`flex-1 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
-                            />
-                             <Input
-                                type="number"
-                                min="1" max="5"
-                                value={subtask.storyPoints}
-                                onChange={(e) => handleSubtaskFieldChange(subtask.id, 'storyPoints', Number(e.target.value))}
-                                className="w-20"
-                            />
+                            <Label
+                              htmlFor={`subtask-${subtask.id}`}
+                              className={`flex-1 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
+                            >
+                              {subtask.title} ({subtask.storyPoints} pts)
+                            </Label>
                             <Button
                               variant="ghost"
                               size="icon"
