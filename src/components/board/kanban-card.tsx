@@ -22,9 +22,12 @@ import { DataContext } from "@/context/data-context";
 import { useContext } from "react";
 import { Calendar, MessageSquare, Star } from "lucide-react";
 import type { Task, TaskPriority } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface KanbanCardProps {
   task: Task;
+  onStatusChange: (newStatus: Task['status']) => void;
+  onDoubleClick: () => void;
 }
 
 const priorityColors: Record<TaskPriority, string> = {
@@ -33,8 +36,9 @@ const priorityColors: Record<TaskPriority, string> = {
     Low: "bg-green-500",
 };
 
-export function KanbanCard({ task }: KanbanCardProps) {
+export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
     const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const { 
       updateTask, 
       addSubtask, 
@@ -57,13 +61,28 @@ export function KanbanCard({ task }: KanbanCardProps) {
         );
         updateTask(taskId, { subtasks: newSubtasks });
     };
+    
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+      e.dataTransfer.setData("taskId", task.id);
+      setIsDragging(true);
+    };
+
+    const handleDragEnd = () => {
+      setIsDragging(false);
+    };
 
     return (
         <>
             <TooltipProvider>
                 <Card 
-                    className="mb-4 cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => setIsDetailViewOpen(true)}
+                    className={cn(
+                        "mb-4 cursor-pointer hover:shadow-lg transition-all",
+                        isDragging && "opacity-50 scale-105 shadow-xl"
+                    )}
+                    onDoubleClick={() => setIsDetailViewOpen(true)}
+                    draggable="true"
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
                 >
                     <CardHeader className="p-3">
                         <div className="flex justify-between items-center">

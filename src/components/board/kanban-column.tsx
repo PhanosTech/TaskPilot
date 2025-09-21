@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
 import { CreateTaskDialog } from "../tasks/create-task-dialog";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface KanbanColumnProps {
   status: TaskStatus;
@@ -19,10 +20,32 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, onTaskSelect, selectedProjectId }: KanbanColumnProps) {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleCreate = (data: Omit<Task, 'id' | 'logs'>) => {
     onCreateTask(data);
     setCreateDialogOpen(false); // Close dialog on successful creation
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("taskId");
+    const task = tasks.find(t => t.id === taskId);
+    
+    // Check if the task is already in this column to prevent unnecessary updates
+    if (taskId && (!task || task.status !== status)) {
+        onTaskStatusChange(taskId, status);
+    }
+    setIsDragOver(false);
   };
 
 
@@ -36,7 +59,15 @@ export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, 
           </span>
         </div>
       </div>
-      <div className="flex flex-col gap-4 rounded-lg bg-muted/50 p-4 min-h-[200px]">
+      <div 
+        className={cn(
+            "flex flex-col gap-4 rounded-lg bg-muted/50 p-4 min-h-[200px] transition-colors",
+            isDragOver && "bg-accent/20 border-dashed border-2 border-accent"
+        )}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         {tasks.length > 0 ? (
           tasks.map((task) => (
             <KanbanCard 
@@ -47,7 +78,11 @@ export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, 
             />
           ))
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">No tasks</p>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground text-center py-4">
+                {isDragOver ? "Drop task here" : "No tasks"}
+            </p>
+          </div>
         )}
         
         <CreateTaskDialog
