@@ -30,7 +30,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Task, Subtask, TaskStatus } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -88,6 +88,7 @@ export function CreateTaskDialog({
       subtasks: [],
       status: defaultStatus,
       projectId: defaultProjectId,
+      deadline: addDays(new Date(), 4),
     },
   });
 
@@ -98,7 +99,7 @@ export function CreateTaskDialog({
       priority: "Medium",
       storyPoints: 0,
       subtasks: [],
-      deadline: undefined,
+      deadline: addDays(new Date(), 4),
       status: defaultStatus,
       projectId: defaultProjectId,
     });
@@ -223,7 +224,7 @@ export function CreateTaskDialog({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
-                    <Popover>
+                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button

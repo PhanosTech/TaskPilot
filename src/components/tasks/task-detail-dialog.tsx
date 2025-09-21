@@ -67,7 +67,9 @@ export function TaskDetailDialog({
   const [description, setDescription] = useState(task.description);
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
-  const [deadline, setDeadline] = useState<Date | undefined>(new Date(task.deadline));
+  const [deadline, setDeadline] = useState<Date | undefined>(
+    task.deadline ? new Date(task.deadline) : new Date()
+  );
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks);
   
@@ -83,7 +85,7 @@ export function TaskDetailDialog({
       setDescription(task.description);
       setStatus(task.status);
       setPriority(task.priority);
-      setDeadline(new Date(task.deadline));
+      setDeadline(task.deadline ? new Date(task.deadline) : new Date());
       setStoryPoints(task.storyPoints);
       setSubtasks(task.subtasks);
     }
