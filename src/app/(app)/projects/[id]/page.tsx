@@ -4,7 +4,7 @@
 import { useContext, useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DataContext } from "@/context/data-context";
-import { Project, Task, Note, ProjectStatus, TaskStatus } from "@/lib/types";
+import { Project, Task, Note, ProjectStatus, TaskStatus, TaskPriority } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -47,6 +47,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
+const priorityOrder: Record<TaskPriority, number> = {
+  High: 0,
+  Medium: 1,
+  Low: 2,
+};
+
 export default function ProjectPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -83,7 +89,9 @@ export default function ProjectPage() {
   } = useMemo(() => {
     const mainNote = project?.notes.find(n => !n.parentId);
     
-    const filteredProjectTasks = projectTasks.filter(task => statusFilters.includes(task.status));
+    const filteredProjectTasks = projectTasks
+      .filter(task => statusFilters.includes(task.status))
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
     return { mainNote, filteredProjectTasks };
   }, [projectTasks, project, statusFilters]);
@@ -336,3 +344,5 @@ export default function ProjectPage() {
     </div>
   );
 }
+
+    

@@ -44,6 +44,12 @@ const priorityColors: Record<TaskPriority, string> = {
   Low: "bg-green-500",
 };
 
+const priorityOrder: Record<TaskPriority, number> = {
+  High: 0,
+  Medium: 1,
+  Low: 2,
+};
+
 export default function DashboardPage() {
   const { 
     projects, 
@@ -84,9 +90,11 @@ export default function DashboardPage() {
     if (showToDo) {
       statusesToShow.push("To Do");
     }
-    return tasks.filter(t => 
-      inProgressProjects.some(p => p.id === t.projectId) && statusesToShow.includes(t.status)
-    );
+    return tasks
+      .filter(t => 
+        inProgressProjects.some(p => p.id === t.projectId) && statusesToShow.includes(t.status)
+      )
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
   }, [projects, tasks, showToDo]);
 
   // State for Personal Todos
@@ -333,5 +341,7 @@ export default function DashboardPage() {
         </>
       )
     }
+
+    
 
     
