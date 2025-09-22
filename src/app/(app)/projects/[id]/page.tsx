@@ -387,6 +387,7 @@ export default function ProjectPage() {
           open={!!liveSelectedTask}
           onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
+          onDeleteTask={deleteTask}
           onSubtaskChange={handleSubtaskChange}
           onAddSubtask={addSubtask}
           onRemoveSubtask={removeSubtask}

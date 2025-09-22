@@ -19,6 +19,7 @@ export default function BoardPage() {
     tasks, 
     createTask, 
     updateTask, 
+    deleteTask,
     updateTaskStatus,
     updateSubtask, 
     addSubtask, 
@@ -115,6 +116,7 @@ export default function BoardPage() {
           open={!!liveSelectedTask} 
           onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
+          onDeleteTask={deleteTask}
           onSubtaskChange={updateSubtask}
           onAddSubtask={addSubtask}
           onRemoveSubtask={removeSubtask}

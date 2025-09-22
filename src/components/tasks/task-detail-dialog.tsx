@@ -32,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,6 +48,8 @@ interface TaskDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Callback to update a task with new data. */
   onUpdateTask: (taskId: string, updatedData: Partial<Task>) => void;
+  /** Callback to delete a task. */
+  onDeleteTask: (taskId: string) => void;
   /** Callback for when a subtask's completion status changes. */
   onSubtaskChange: (taskId: string, subtaskId: string, changes: Partial<Subtask>) => void;
   /** Callback to add a new subtask to the current task. */
@@ -72,6 +74,7 @@ export function TaskDetailDialog({
   open,
   onOpenChange,
   onUpdateTask,
+  onDeleteTask,
   onSubtaskChange,
   onAddSubtask,
   onRemoveSubtask,
@@ -94,6 +97,7 @@ export function TaskDetailDialog({
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editingLogContent, setEditingLogContent] = useState("");
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
+  const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
 
   const { toast } = useToast();
   
@@ -110,6 +114,7 @@ export function TaskDetailDialog({
       setDeadline(task.deadline ? new Date(task.deadline) : undefined);
       setEditingLogId(null);
       setDeletingLogId(null);
+      setDeleteAlertOpen(false);
     }
   }, [open, task]);
 
@@ -131,6 +136,16 @@ export function TaskDetailDialog({
       description: "Your changes have been saved.",
     });
     onOpenChange(false);
+  };
+  
+  const handleDelete = () => {
+    onDeleteTask(task.id);
+    setDeleteAlertOpen(false);
+    onOpenChange(false);
+    toast({
+      title: "Task Deleted",
+      description: `Task "${task.title}" has been deleted.`,
+    });
   };
 
   const handleAddLog = () => {
@@ -377,8 +392,19 @@ export function TaskDetailDialog({
                 )}
               </div>
           </div>
-          <DialogFooter>
-            <Button onClick={handleSaveChanges}>Save Changes</Button>
+          <DialogFooter className="flex justify-between w-full">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setDeleteAlertOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Task
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={handleSaveChanges}>Save Changes</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -396,6 +422,22 @@ export function TaskDetailDialog({
             <AlertDialogAction onClick={handleDeleteLog}>
               Delete
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              task "{task.title}" and all of its data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

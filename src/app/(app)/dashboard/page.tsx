@@ -51,6 +51,7 @@ export default function DashboardPage() {
     projects, 
     tasks, 
     updateTask, 
+    deleteTask,
     updateSubtask,
     addSubtask, 
     removeSubtask, 
@@ -218,6 +219,7 @@ export default function DashboardPage() {
           open={!!selectedTask} 
           onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={updateTask}
+          onDeleteTask={deleteTask}
           onSubtaskChange={updateSubtask}
           onAddSubtask={addSubtask}
           onRemoveSubtask={removeSubtask}
