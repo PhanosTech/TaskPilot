@@ -2,12 +2,17 @@
 "use client";
 
 import { useState, useMemo, useContext, useEffect } from "react";
+import type { Task, TaskStatus, Subtask, Log } from "@/lib/types";
+import { DataContext } from "@/context/data-context";
 import { KanbanBoard } from "@/components/board/kanban-board";
-import type { Task, TaskStatus, Subtask } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
-import { DataContext } from "@/context/data-context";
 
+/**
+ * @page BoardPage
+ * Renders the main Kanban board view for managing tasks across different statuses.
+ * Users can filter tasks by project and interact with task cards.
+ */
 export default function BoardPage() {
   const { 
     projects, 
@@ -18,35 +23,28 @@ export default function BoardPage() {
     updateSubtask, 
     addSubtask, 
     removeSubtask, 
-    addLog 
+    addLog,
+    updateLog,
+    deleteLog
   } = useContext(DataContext);
   
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
 
   const selectedTask = useMemo(() => {
     if (!selectedTaskId) return null;
     return tasks.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, tasks]);
+  
+  // Re-fetch the selected task from the main tasks array whenever it changes.
+  // This ensures the dialog always has the latest data.
+  const liveSelectedTask = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return tasks.find(t => t.id === selectedTaskId);
+  }, [selectedTaskId, tasks]);
 
   const inProgressProjects = useMemo(() => projects.filter(p => p.status === 'In Progress'), [projects]);
 
-  const handleCreateTask = (newTaskData: Omit<Task, 'id' | 'logs'>) => {
-    // projectId should be set in the data
-    if (newTaskData.projectId) {
-       createTask(newTaskData);
-    }
-  };
-
-  const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
-    updateTask(taskId, updatedData);
-  };
-
-  const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
-    updateSubtask(taskId, subtaskId, changes);
-  };
-  
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
-  
   const filteredTasks = useMemo(() => {
     const activeProjectIds = new Set(inProgressProjects.map(p => p.id));
 
@@ -62,10 +60,44 @@ export default function BoardPage() {
   }, [selectedProjectId, tasks, inProgressProjects]);
   
 
+  /**
+   * @function handleCreateTask
+   * Creates a new task.
+   * @param {Omit<Task, 'id' | 'logs'>} newTaskData - The data for the new task.
+   */
+  const handleCreateTask = (newTaskData: Omit<Task, 'id' | 'logs'>) => {
+    createTask(newTaskData);
+  };
+
+  /**
+   * @function handleUpdateTask
+   * Updates an existing task with partial data.
+   * @param {string} taskId - The ID of the task to update.
+   * @param {Partial<Task>} updatedData - The data to update.
+   */
+  const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
+    updateTask(taskId, updatedData);
+  };
+
+  /**
+   * @function handleSubtaskChange
+   * Updates a specific subtask within a task.
+   * @param {string} taskId - The ID of the parent task.
+   * @param {string} subtaskId - The ID of the subtask to update.
+   * @param {Partial<Subtask>} changes - The partial data to update the subtask with.
+   */
+  const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
+    updateSubtask(taskId, subtaskId, changes);
+  };
+  
+  /**
+   * @function handleTaskSelect
+   * Sets the currently selected task to open the detail dialog.
+   * @param {Task} task - The selected task.
+   */
   const handleTaskSelect = (task: Task) => {
     setSelectedTaskId(task.id);
   };
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -93,16 +125,18 @@ export default function BoardPage() {
         selectedProjectId={selectedProjectId}
       />
       
-      {selectedTask && (
+      {liveSelectedTask && (
         <TaskDetailDialog 
-          task={selectedTask} 
-          open={!!selectedTask} 
+          task={liveSelectedTask} 
+          open={!!liveSelectedTask} 
           onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
           onSubtaskChange={handleSubtaskChange}
           onAddSubtask={addSubtask}
           onRemoveSubtask={removeSubtask}
           onAddLog={addLog}
+          onUpdateLog={updateLog}
+          onDeleteLog={deleteLog}
         />
       )}
     </div>

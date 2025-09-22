@@ -1,8 +1,10 @@
 
 "use client";
 
-import { useState, useContext, useEffect, useMemo } from "react";
+import { useState, useContext, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import type { Task, TaskPriority, Subtask } from "@/lib/types";
+import { DataContext } from "@/context/data-context";
 import {
   Card,
   CardContent,
@@ -20,23 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
-import { DataContext } from "@/context/data-context";
-import type { Task, TaskPriority, Subtask } from "@/lib/types";
+import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
+import { PersonalTodos } from "@/components/dashboard/personal-todos";
+import { Scratchpad } from "@/components/dashboard/scratchpad";
 
 const priorityColors: Record<TaskPriority, string> = {
   High: "bg-red-500",
@@ -50,6 +41,11 @@ const priorityOrder: Record<TaskPriority, number> = {
   Low: 2,
 };
 
+/**
+ * @page DashboardPage
+ * The main dashboard of the application, providing a high-level overview of projects and tasks.
+ * It includes summary statistics, an active work queue, personal todos, and a scratchpad.
+ */
 export default function DashboardPage() {
   const { 
     projects, 
@@ -58,11 +54,11 @@ export default function DashboardPage() {
     updateSubtask,
     addSubtask, 
     removeSubtask, 
-    addLog 
+    addLog,
+    updateLog
   } = useContext(DataContext);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showToDo, setShowToDo] = useState(false);
-  const [scratchpadContent, setScratchpadContent] = useState("");
   const router = useRouter();
   
   const selectedTask = useMemo(() => {
@@ -70,25 +66,9 @@ export default function DashboardPage() {
     return tasks.find(t => t.id === selectedTaskId) || null;
   }, [selectedTaskId, tasks]);
 
-  // Load scratchpad from localStorage on initial render
-  useEffect(() => {
-    const savedContent = localStorage.getItem("taskpilot-scratchpad");
-    if (savedContent) {
-      setScratchpadContent(savedContent);
-    }
-  }, []);
-
-  // Save scratchpad to localStorage on change
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      localStorage.setItem("taskpilot-scratchpad", scratchpadContent);
-    }, 500); // Debounce to avoid excessive writes
-    return () => clearTimeout(handler);
-  }, [scratchpadContent]);
-
   const totalProjects = projects.length;
   const tasksInProgress = tasks.filter(t => t.status === 'In Progress').length;
-  const overdueTasks = tasks.filter(t => new Date(t.deadline) < new Date() && t.status !== 'Done').length;
+  const overdueTasks = tasks.filter(t => new Date(t.deadline || 0) < new Date() && t.status !== 'Done').length;
 
   const activeWorkQueue = useMemo(() => {
     const inProgressProjects = projects.filter(p => p.status === 'In Progress');
@@ -103,46 +83,31 @@ export default function DashboardPage() {
       .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
   }, [projects, tasks, showToDo]);
 
-  // State for Personal Todos
-  const [personalTodos, setPersonalTodos] = useState([
-    { id: 1, text: "Follow up on client feedback", completed: false, status: "in-progress" },
-    { id: 2, text: "Schedule team meeting", completed: false, status: "in-progress" },
-    { id: 3, text: "Draft Q3 report", completed: true, status: "backlog" },
-  ]);
-  const [newTodo, setNewTodo] = useState("");
-
-  const handleAddTodo = () => {
-    if (newTodo.trim() !== "") {
-      setPersonalTodos([...personalTodos, { id: Date.now(), text: newTodo, completed: false, status: "in-progress" }]);
-      setNewTodo("");
-    }
-  };
-
-  const handleToggleTodo = (id: number) => {
-    setPersonalTodos(personalTodos.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
-  };
-
-  const handleUpdateTodoStatus = (id: number, status: "in-progress" | "backlog") => {
-    setPersonalTodos(personalTodos.map(todo => 
-      todo.id === id ? { ...todo, status } : todo
-    ));
-  };
-  
-  const handleDeleteTodo = (id: number) => {
-    setPersonalTodos(personalTodos.filter(todo => todo.id !== id));
-  };
-
-
+  /**
+   * @function handleSubtaskChange
+   * A handler to update a subtask's properties.
+   * @param {string} taskId - The ID of the parent task.
+   * @param {string} subtaskId - The ID of the subtask to update.
+   * @param {Partial<Subtask>} changes - The changes to apply to the subtask.
+   */
   const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
     updateSubtask(taskId, subtaskId, changes);
   };
 
+  /**
+   * @function handleTaskClick
+   * A handler to select a task and open its detail view.
+   * @param {Task} task - The task that was clicked.
+   */
   const handleTaskClick = (task: Task) => {
     setSelectedTaskId(task.id);
   };
 
+  /**
+   * @function handleTaskDoubleClick
+   * A handler for navigating to a task's parent project page on double-click.
+   * @param {string} projectId - The ID of the project to navigate to.
+   */
   const handleTaskDoubleClick = (projectId: string) => {
     router.push(`/projects/${projectId}`);
   };
@@ -249,95 +214,28 @@ export default function DashboardPage() {
             </ScrollArea>
           </CardContent>
         </Card>
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Personal Todos</CardTitle>
-            <CardDescription>Quick reminders and tasks not tied to a project.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex w-full max-w-sm items-center space-x-2 mb-4">
-              <Input 
-                type="text" 
-                placeholder="Add a new todo" 
-                value={newTodo} 
-                onChange={(e) => setNewTodo(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
-              />
-              <Button type="submit" onClick={handleAddTodo}>
-                <PlusCircle className="h-4 w-4 mr-2" /> Add
-              </Button>
-            </div>
-            <Tabs defaultValue="in-progress">
-              <TabsList>
-                <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-                <TabsTrigger value="backlog">Backlog</TabsTrigger>
-              </TabsList>
-              <TabsContent value="in-progress">
-                {personalTodos.filter(t => t.status === 'in-progress').map(todo => (
-                  <div key={todo.id} className="flex items-center space-x-2 my-2 group">
-                    <Checkbox id={`todo-${todo.id}`} checked={todo.completed} onCheckedChange={() => handleToggleTodo(todo.id)} />
-                    <label
-                      htmlFor={`todo-${todo.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1"
-                    >
-                      {todo.text}
-                    </label>
-                    <Button variant="outline" size="sm" onClick={() => handleUpdateTodoStatus(todo.id, "backlog")} className="opacity-0 group-hover:opacity-100">Move to Backlog</Button>
-                    <Button variant="destructive" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteTodo(todo.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </TabsContent>
-              <TabsContent value="backlog">
-                {personalTodos.filter(t => t.status === 'backlog').map(todo => (
-                  <div key={todo.id} className="flex items-center space-x-2 my-2 group">
-                    <Checkbox id={`todo-${todo.id}`} checked={todo.completed} onCheckedChange={() => handleToggleTodo(todo.id)} />
-                    <label
-                      htmlFor={`todo-${todo.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1"
-                    >
-                      {todo.text}
-                    </label>
-                    <Button variant="outline" size="sm" onClick={() => handleUpdateTodoStatus(todo.id, "in-progress")} className="opacity-0 group-hover:opacity-100">Move to In Progress</Button>
-                     <Button variant="destructive" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteTodo(todo.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+        
+        <PersonalTodos />
+        
       </div>
       <div className="grid gap-4">
-        <Card>
-            <CardHeader>
-              <CardTitle>Scratchpad</CardTitle>
-              <CardDescription>A simple notepad for quick thoughts. Saved automatically.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                placeholder="Jot down anything..."
-                className="h-48 resize-none"
-                value={scratchpadContent}
-                onChange={(e) => setScratchpadContent(e.target.value)}
-              />
-            </CardContent>
-          </Card>
+        <Scratchpad />
       </div>
-          {selectedTask && (
-            <TaskDetailDialog 
-              task={selectedTask} 
-              open={!!selectedTask} 
-              onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
-              onUpdateTask={updateTask}
-              onSubtaskChange={handleSubtaskChange}
-              onAddSubtask={addSubtask}
-              onRemoveSubtask={removeSubtask}
-              onAddLog={addLog}
-            />
-          )}
-        </>
-      )
-    }
+      
+      {selectedTask && (
+        <TaskDetailDialog 
+          task={selectedTask} 
+          open={!!selectedTask} 
+          onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
+          onUpdateTask={updateTask}
+          onSubtaskChange={handleSubtaskChange}
+          onAddSubtask={addSubtask}
+          onRemoveSubtask={removeSubtask}
+          onAddLog={addLog}
+          onUpdateLog={updateLog}
+          onDeleteLog={() => {}} // onDeleteLog is required by the component
+        />
+      )}
+    </>
+  );
+}

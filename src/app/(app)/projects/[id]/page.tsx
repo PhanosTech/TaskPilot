@@ -3,8 +3,8 @@
 
 import { useContext, useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import type { Project, Task, Note, ProjectStatus, TaskStatus, TaskPriority, Subtask } from "@/lib/types";
 import { DataContext } from "@/context/data-context";
-import { Project, Task, Note, ProjectStatus, TaskStatus, TaskPriority, Subtask } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -30,22 +30,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { NotesTabContent } from "@/components/projects/notes-tab-content";
-import { Progress } from "@/components/ui/progress";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NoteRenderer } from "@/components/projects/note-renderer";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { TasksByStatusChart } from "@/components/charts/tasks-by-status-chart";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 const priorityOrder: Record<TaskPriority, number> = {
   High: 0,
@@ -53,6 +53,11 @@ const priorityOrder: Record<TaskPriority, number> = {
   Low: 2,
 };
 
+/**
+ * @page ProjectPage
+ * Displays the detailed view for a single project, including its tasks and notes.
+ * Allows for editing project details, managing tasks, and interacting with project-specific content.
+ */
 export default function ProjectPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -69,6 +74,7 @@ export default function ProjectPage() {
     removeSubtask,
     addLog,
     updateLog,
+    deleteLog
   } = useContext(DataContext);
   
   const [project, setProject] = useState<Project | null>(null);
@@ -76,9 +82,11 @@ export default function ProjectPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [statusFilters, setStatusFilters] = useState<TaskStatus[]>(['To Do', 'In Progress']);
 
-  const selectedTask = useMemo(() => {
+  // Re-fetch the selected task from the main tasks array whenever it changes.
+  // This ensures the dialog always has the latest data.
+  const liveSelectedTask = useMemo(() => {
     if (!selectedTaskId) return null;
-    return tasks.find(t => t.id === selectedTaskId) || null;
+    return tasks.find(t => t.id === selectedTaskId);
   }, [selectedTaskId, tasks]);
   
   useEffect(() => {
@@ -103,6 +111,12 @@ export default function ProjectPage() {
     return { mainNote, filteredProjectTasks };
   }, [projectTasks, project, statusFilters]);
 
+  /**
+   * @function handleStatusFilterChange
+   * Toggles the task status filters for the task list.
+   * @param {TaskStatus} status - The status to toggle.
+   * @param {boolean} checked - The new checked state.
+   */
   const handleStatusFilterChange = (status: TaskStatus, checked: boolean) => {
     setStatusFilters(prev => {
       if (checked) {
@@ -113,36 +127,74 @@ export default function ProjectPage() {
     });
   };
 
+  /**
+   * @function handleStatusChange
+   * Updates the project's status.
+   * @param {ProjectStatus} newStatus - The new status for the project.
+   */
   const handleStatusChange = (newStatus: ProjectStatus) => {
     if (project) {
       updateProject(project.id, { status: newStatus });
     }
   };
 
+  /**
+   * @function handleTaskCreated
+   * Callback for when a new task is created via the dialog.
+   * @param {Omit<Task, "id" | "logs">} newTask - The new task data.
+   */
   const handleTaskCreated = (newTask: Omit<Task, "id" | "logs">) => {
     createTask(newTask);
   };
 
+  /**
+   * @function handleUpdateTask
+   * Callback to update a task's details.
+   * @param {string} taskId - The ID of the task to update.
+   * @param {Partial<Task>} updatedData - The data to update.
+   */
   const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
     updateTask(taskId, updatedData);
   };
   
+  /**
+   * @function handleSubtaskChange
+   * Callback to update a subtask.
+   * @param {string} taskId - The parent task's ID.
+   * @param {string} subtaskId - The subtask's ID.
+   * @param {Partial<Subtask>} changes - The changes to apply.
+   */
   const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
     updateSubtask(taskId, subtaskId, changes);
   };
   
+  /**
+   * @function handleNotesChange
+   * Callback to update the project's notes.
+   * @param {Note[]} newNotes - The new array of notes.
+   */
   const handleNotesChange = (newNotes: Note[]) => {
     if (project) {
       updateProject(project.id, { notes: newNotes });
     }
   };
   
+  /**
+   * @function handleProjectUpdated
+   * Callback to update the project's core details.
+   * @param {Partial<Project>} data - The updated project data.
+   */
   const handleProjectUpdated = (data: Partial<Project>) => {
     if (project) {
       updateProject(project.id, data);
     }
   };
   
+  /**
+   * @function handleProjectDeleted
+   * Callback to delete the project.
+   * @param {string} projectId - The ID of the project to delete.
+   */
   const handleProjectDeleted = (projectId: string) => {
     deleteProject(projectId);
     router.push("/projects");
@@ -199,9 +251,10 @@ export default function ProjectPage() {
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
               </TabsList>
-              <CreateTaskDialog onTaskCreated={handleTaskCreated} defaultProjectId={project.id}>
-                <Button>Add Task</Button>
-              </CreateTaskDialog>
+               <CreateTaskDialog
+                  onTaskCreated={handleTaskCreated}
+                  defaultProjectId={project.id}
+                />
             </div>
             <TabsContent value="tasks">
                <div className="flex items-center gap-4 my-4">
@@ -327,10 +380,10 @@ export default function ProjectPage() {
         </Card>
       )}
 
-      {selectedTask && (
+      {liveSelectedTask && (
         <TaskDetailDialog
-          task={selectedTask}
-          open={!!selectedTask}
+          task={liveSelectedTask}
+          open={!!liveSelectedTask}
           onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
           onSubtaskChange={handleSubtaskChange}
@@ -338,6 +391,7 @@ export default function ProjectPage() {
           onRemoveSubtask={removeSubtask}
           onAddLog={addLog}
           onUpdateLog={updateLog}
+          onDeleteLog={deleteLog}
         />
       )}
     </div>

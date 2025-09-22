@@ -9,33 +9,60 @@ import { CreateTaskDialog } from "../tasks/create-task-dialog";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * @interface KanbanColumnProps
+ * Props for the KanbanColumn component.
+ */
 interface KanbanColumnProps {
+  /** The status this column represents (e.g., "To Do"). */
   status: TaskStatus;
+  /** The array of tasks to display in this column. */
   tasks: Task[];
+  /** Callback to handle changing a task's status (e.g., when dropped). */
   onTaskStatusChange: (taskId: string, newStatus: TaskStatus) => void;
+  /** Callback to handle the creation of a new task in this column. */
   onCreateTask: (data: Omit<Task, 'id' | 'logs'>) => void;
+  /** Callback when a task card is selected. */
   onTaskSelect: (task: Task) => void;
+  /** The currently selected project ID, or 'all'. */
   selectedProjectId: string;
 }
 
+/**
+ * @component KanbanColumn
+ * Represents a single column in the Kanban board (e.g., "To Do", "In Progress").
+ * It displays tasks for that status and handles drag-and-drop operations.
+ * @param {KanbanColumnProps} props - The component props.
+ */
 export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, onTaskSelect, selectedProjectId }: KanbanColumnProps) {
-  const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  
+  // A task can only be created if a specific project is selected, not "all".
+  const canCreateTask = selectedProjectId !== 'all';
 
-  const handleCreate = (data: Omit<Task, 'id' | 'logs'>) => {
-    onCreateTask(data);
-    setCreateDialogOpen(false); // Close dialog on successful creation
-  };
-
+  /**
+   * @function handleDragOver
+   * Prevents the default drag behavior and sets the drag-over state.
+   * @param {React.DragEvent<HTMLDivElement>} e - The drag event.
+   */
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(true);
   };
   
+  /**
+   * @function handleDragLeave
+   * Resets the drag-over state when the dragged item leaves the column.
+   */
   const handleDragLeave = () => {
     setIsDragOver(false);
   };
   
+  /**
+   * @function handleDrop
+   * Handles the drop event, updating the task's status.
+   * @param {React.DragEvent<HTMLDivElement>} e - The drop event.
+   */
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
@@ -47,7 +74,6 @@ export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, 
     }
     setIsDragOver(false);
   };
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,7 +99,6 @@ export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, 
             <KanbanCard 
               key={task.id} 
               task={task} 
-              onStatusChange={(newStatus) => onTaskStatusChange(task.id, newStatus)}
               onDoubleClick={() => onTaskSelect(task)}
             />
           ))
@@ -86,13 +111,16 @@ export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, 
         )}
         
         <CreateTaskDialog
-          open={isCreateDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          onCreateTask={handleCreate}
+          onTaskCreated={onCreateTask}
           defaultStatus={status}
           defaultProjectId={selectedProjectId !== 'all' ? selectedProjectId : undefined}
         >
-          <Button variant="ghost" className="w-full mt-2">
+          <Button 
+            variant="ghost" 
+            className="w-full mt-2"
+            disabled={!canCreateTask}
+            title={canCreateTask ? "Add a new task" : "Select a project to add a task"}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Task
           </Button>
