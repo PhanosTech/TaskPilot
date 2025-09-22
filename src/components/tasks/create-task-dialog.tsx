@@ -51,15 +51,31 @@ const taskSchema = z.object({
 
 type TaskFormValues = z.infer<typeof taskSchema>;
 
+/**
+ * @interface CreateTaskDialogProps
+ * Props for the CreateTaskDialog component.
+ */
 interface CreateTaskDialogProps {
-  onTaskCreated: (data: Omit<Task, 'id' | 'logs' | 'storyPoints'>) => void;
+  /** Callback function invoked when a new task is created. */
+  onTaskCreated: (data: Omit<Task, 'id' | 'logs'>) => void;
+  /** When true, the dialog is open. */
   open?: boolean;
+  /** Callback for when the dialog's open state changes. */
   onOpenChange?: (open: boolean) => void;
+  /** The trigger element that opens the dialog. If not provided, a default button is used. */
   children?: ReactNode;
+  /** The default status for a newly created task. */
   defaultStatus?: TaskStatus;
+  /** The default project ID for a newly created task. */
   defaultProjectId?: string;
 }
 
+/**
+ * @component CreateTaskDialog
+ * A dialog for creating a new task. It includes fields for title, description,
+ * project, status, priority, deadline, and subtasks.
+ * @param {CreateTaskDialogProps} props - The component props.
+ */
 export function CreateTaskDialog({ 
   onTaskCreated,
   open: controlledOpen,
@@ -70,8 +86,9 @@ export function CreateTaskDialog({
  }: CreateTaskDialogProps) {
   const { projects } = useContext(DataContext);
   const [internalOpen, setInternalOpen] = useState(false);
-  const open = controlledOpen ?? internalOpen;
-  const setOpen = setControlledOpen ?? internalOpen;
+  
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = setControlledOpen !== undefined ? setControlledOpen : setInternalOpen;
   
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
@@ -118,7 +135,6 @@ export function CreateTaskDialog({
       setNewSubtaskPoints(2);
     }
   };
-
 
   const onSubmit = (data: TaskFormValues) => {
     const finalSubtasks: Subtask[] = (data.subtasks || []).map((st, index) => ({
