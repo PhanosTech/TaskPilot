@@ -100,36 +100,39 @@ export function KanbanCard({ task, projectName, onDoubleClick }: KanbanCardProps
                         </div>
                         <CardTitle className="text-base pt-0">{task.title}</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-3 pt-0">
-                       <div className="flex space-x-2 text-sm text-muted-foreground">
-                           <div className="flex items-center gap-1">
-                               <Calendar className="h-4 w-4" />
-                               <span>{new Date(task.deadline).toLocaleDateString()}</span>
-                           </div>
-                           {task.subtasks.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                  <MessageSquare className="h-4 w-4" />
-                                  <span>{task.subtasks.filter(st => st.isCompleted).length}/{task.subtasks.length}</span>
-                              </div>
-                           )}
+                    
+                    <CardFooter className="p-3 pt-0 flex flex-col items-start gap-3">
+                       <div className="w-full">
+                         {task.subtasks.length > 0 && <Progress value={progress} className="h-2 w-full" />}
                        </div>
-                    </CardContent>
-                    <CardFooter className="p-3 pt-0 flex justify-between items-center gap-4">
-                      <div className="flex items-center gap-2">
-                          <Tooltip>
-                              <TooltipTrigger>
-                                <div className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`} />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                  <p>{task.priority} Priority</p>
-                              </TooltipContent>
-                          </Tooltip>
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Star className="h-3 w-3" />
-                          {task.storyPoints}
-                        </Badge>
-                    </div>
-                    {task.subtasks.length > 0 && <Progress value={progress} className="h-2 flex-1" />}
+                       <div className="flex justify-between items-center w-full text-xs text-muted-foreground">
+                           <div className="flex items-center gap-3">
+                               <div className="flex items-center gap-1">
+                                   <Calendar className="h-3 w-3" />
+                                   <span>{new Date(task.deadline).toLocaleDateString()}</span>
+                               </div>
+                               {task.subtasks.length > 0 && (
+                                  <div className="flex items-center gap-1">
+                                      <MessageSquare className="h-3 w-3" />
+                                      <span>{task.subtasks.filter(st => st.isCompleted).length}/{task.subtasks.length}</span>
+                                  </div>
+                               )}
+                           </div>
+                           <div className="flex items-center gap-2">
+                               <Tooltip>
+                                  <TooltipTrigger>
+                                    <div className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`} />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                      <p>{task.priority} Priority</p>
+                                  </TooltipContent>
+                               </Tooltip>
+                                <Badge variant="secondary" className="flex items-center gap-1 px-1.5 py-0.5 text-xs">
+                                  <Star className="h-3 w-3" />
+                                  {task.storyPoints}
+                                </Badge>
+                           </div>
+                       </div>
                   </CardFooter>
                 </Card>
             </TooltipProvider>
