@@ -154,7 +154,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-start text-left truncate h-8 px-2",
+                    "w-full justify-start text-left h-8 px-2",
                     note.id === activeNoteId && "bg-accent text-accent-foreground"
                   )}
                   onClick={() => setActiveNoteId(note.id)}
@@ -204,7 +204,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
           <PlusCircle className="mr-2 h-4 w-4" /> Add Note
         </Button>
         <ScrollArea className="flex-1">
-          <div className="flex flex-col gap-1 pr-2">
+           <div className="flex flex-col gap-1 pr-2 min-w-max">
             {renderNoteTree()}
           </div>
         </ScrollArea>
