@@ -11,6 +11,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
@@ -48,6 +58,8 @@ interface TaskDetailDialogProps {
   onAddLog: (taskId: string, logContent: string) => void;
   /** Callback to update an existing work log. */
   onUpdateLog: (taskId: string, logId: string, newContent: string) => void;
+  /** Callback to delete an existing work log. */
+  onDeleteLog: (taskId: string, logId: string) => void;
 }
 
 /**
@@ -65,6 +77,7 @@ export function TaskDetailDialog({
   onRemoveSubtask,
   onAddLog,
   onUpdateLog,
+  onDeleteLog,
 }: TaskDetailDialogProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
@@ -80,6 +93,7 @@ export function TaskDetailDialog({
   
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editingLogContent, setEditingLogContent] = useState("");
+  const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
 
   const { toast } = useToast();
   
@@ -95,6 +109,7 @@ export function TaskDetailDialog({
       setPriority(task.priority);
       setDeadline(task.deadline ? new Date(task.deadline) : addDays(new Date(), 4));
       setEditingLogId(null);
+      setDeletingLogId(null);
     }
   }, [open, task]);
 
@@ -173,190 +188,226 @@ export function TaskDetailDialog({
     }
   };
 
+  const handleDeleteLog = () => {
+    if (deletingLogId) {
+      onDeleteLog(task.id, deletingLogId);
+      setDeletingLogId(null);
+    }
+  };
+
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-             <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold" />
-          </DialogTitle>
-          <DialogDescription>
-             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add a description..." />
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
-                <div className="flex flex-col space-y-2">
-                    <Label>Status</Label>
-                    <Select value={status} onValueChange={(value: TaskStatus) => setStatus(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Set status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="To Do">To Do</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Done">Done</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
-                <div className="flex flex-col space-y-2">
-                    <Label>Priority</Label>
-                    <Select value={priority} onValueChange={(value: TaskPriority) => setPriority(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Set priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
-                <div className="flex flex-col space-y-2">
-                    <Label>Story Points</Label>
-                    <Input type="number" value={storyPoints} disabled />
-                </div>
-                 <div className="flex flex-col space-y-2">
-                    <Label>Due Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !deadline && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {deadline ? format(deadline, "MM/dd/yy") : <span>Pick a date</span>}
-                          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={deadline}
-                          onSelect={setDeadline}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                 </div>
-            </div>
-          
-            <div>
-                <h3 className="mb-2 font-semibold">
-                    Subtasks ({completedSubtasks}/{task.subtasks.length}) - {completedStoryPoints}/{totalSubtaskStoryPoints} pts
-                </h3>
-                <div className="space-y-2">
-                    {task.subtasks.map((subtask) => (
-                        <div key={subtask.id} className="flex items-center space-x-2 group">
-                            <Checkbox
-                                id={`subtask-${subtask.id}`}
-                                checked={subtask.isCompleted}
-                                onCheckedChange={(checked) =>
-                                  onSubtaskChange(task.id, subtask.id, { isCompleted: !!checked })
-                                }
-                            />
-                            <Input
-                              value={subtask.title}
-                              onChange={(e) => handleSubtaskTitleChange(subtask.id, e.target.value)}
-                              className={`flex-1 h-8 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
-                            />
-                             <Input
-                              type="number"
-                              min="1"
-                              max="5"
-                              value={subtask.storyPoints}
-                              onChange={(e) => handleSubtaskPointsChange(subtask.id, Number(e.target.value))}
-                              className="w-20 h-8"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={() => onRemoveSubtask(task.id, subtask.id)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ))}
-                </div>
-                 <div className="flex items-center gap-2 mt-2">
-                    <Input 
-                      placeholder="Add a new subtask" 
-                      value={newSubtaskTitle}
-                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(); }}}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Pts"
-                      className="w-20"
-                      min="1" max="5"
-                      value={newSubtaskPoints}
-                      onChange={(e) => setNewSubtaskPoints(Number(e.target.value))}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(); }}}
-                    />
-                    <Button type="button" onClick={handleAddSubtask}>Add</Button>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+               <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold" />
+            </DialogTitle>
+            <DialogDescription>
+               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add a description..." />
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                  <div className="flex flex-col space-y-2">
+                      <Label>Status</Label>
+                      <Select value={status} onValueChange={(value: TaskStatus) => setStatus(value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Set status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="To Do">To Do</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Done">Done</SelectItem>
+                        </SelectContent>
+                      </Select>
                   </div>
-            </div>
-
-            <Separator />
-
-            <div>
-              <h3 className="mb-2 font-semibold">Work Logs</h3>
-              <div className="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2">
-                {task.logs.slice().reverse().map(log => (
-                  <div key={log.id} className="text-sm text-muted-foreground group">
-                    {editingLogId === log.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editingLogContent}
-                          onChange={(e) => setEditingLogContent(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleSaveLog}>Save</Button>
-                          <Button size="sm" variant="outline" onClick={handleCancelEditLog}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="font-medium text-foreground">{log.content}</p>
-                        <div className="flex items-center justify-between">
-                            <p>{new Date(log.createdAt).toLocaleString()}</p>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={() => handleStartEditLog(log)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                      </>
-                    )}
+                  <div className="flex flex-col space-y-2">
+                      <Label>Priority</Label>
+                      <Select value={priority} onValueChange={(value: TaskPriority) => setPriority(value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Set priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Low">Low</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                        </SelectContent>
+                      </Select>
                   </div>
-                ))}
-                {task.logs.length === 0 && <p className="text-sm text-muted-foreground">No logs yet.</p>}
+                  <div className="flex flex-col space-y-2">
+                      <Label>Story Points</Label>
+                      <Input type="number" value={storyPoints} disabled />
+                  </div>
+                   <div className="flex flex-col space-y-2">
+                      <Label>Due Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !deadline && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {deadline ? format(deadline, "MM/dd/yy") : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={deadline}
+                            onSelect={setDeadline}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                   </div>
+              </div>
+            
+              <div>
+                  <h3 className="mb-2 font-semibold">
+                      Subtasks ({completedSubtasks}/{task.subtasks.length}) - {completedStoryPoints}/{totalSubtaskStoryPoints} pts
+                  </h3>
+                  <div className="space-y-2">
+                      {task.subtasks.map((subtask) => (
+                          <div key={subtask.id} className="flex items-center space-x-2 group">
+                              <Checkbox
+                                  id={`subtask-${subtask.id}`}
+                                  checked={subtask.isCompleted}
+                                  onCheckedChange={(checked) =>
+                                    onSubtaskChange(task.id, subtask.id, { isCompleted: !!checked })
+                                  }
+                              />
+                              <Input
+                                value={subtask.title}
+                                onChange={(e) => handleSubtaskTitleChange(subtask.id, e.target.value)}
+                                className={`flex-1 h-8 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
+                              />
+                               <Input
+                                type="number"
+                                min="1"
+                                max="5"
+                                value={subtask.storyPoints}
+                                onChange={(e) => handleSubtaskPointsChange(subtask.id, Number(e.target.value))}
+                                className="w-20 h-8"
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                onClick={() => onRemoveSubtask(task.id, subtask.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                          </div>
+                      ))}
+                  </div>
+                   <div className="flex items-center gap-2 mt-2">
+                      <Input 
+                        placeholder="Add a new subtask" 
+                        value={newSubtaskTitle}
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(); }}}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Pts"
+                        className="w-20"
+                        min="1" max="5"
+                        value={newSubtaskPoints}
+                        onChange={(e) => setNewSubtaskPoints(Number(e.target.value))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(); }}}
+                      />
+                      <Button type="button" onClick={handleAddSubtask}>Add</Button>
+                    </div>
               </div>
 
-              {editingLogId === null && (
-                <div className="space-y-2">
-                   <Textarea 
-                      placeholder="Add a new work log..."
-                      value={newLog}
-                      onChange={(e) => setNewLog(e.target.value)}
-                   />
-                   <Button onClick={handleAddLog} disabled={!newLog.trim()}>Add Log</Button>
+              <Separator />
+
+              <div>
+                <h3 className="mb-2 font-semibold">Work Logs</h3>
+                <div className="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2">
+                  {task.logs.slice().reverse().map(log => (
+                    <div key={log.id} className="text-sm text-muted-foreground group">
+                      {editingLogId === log.id ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editingLogContent}
+                            onChange={(e) => setEditingLogContent(e.target.value)}
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleSaveLog}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={handleCancelEditLog}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-medium text-foreground">{log.content}</p>
+                          <div className="flex items-center justify-between">
+                              <p>{new Date(log.createdAt).toLocaleString()}</p>
+                              <div className="flex opacity-0 group-hover:opacity-100">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleStartEditLog(log)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => setDeletingLogId(log.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {task.logs.length === 0 && <p className="text-sm text-muted-foreground">No logs yet.</p>}
                 </div>
-              )}
-            </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSaveChanges}>Save Changes</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+                {editingLogId === null && (
+                  <div className="space-y-2">
+                     <Textarea 
+                        placeholder="Add a new work log..."
+                        value={newLog}
+                        onChange={(e) => setNewLog(e.target.value)}
+                     />
+                     <Button onClick={handleAddLog} disabled={!newLog.trim()}>Add Log</Button>
+                  </div>
+                )}
+              </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSaveChanges}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={!!deletingLogId} onOpenChange={(open) => !open && setDeletingLogId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this work log.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteLog}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

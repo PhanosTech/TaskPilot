@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useContext, useEffect } from "react";
+import { useState, useMemo, useContext } from "react";
 import type { Task } from "@/lib/types";
 import { DataContext } from "@/context/data-context";
 import { KanbanBoard } from "@/components/board/kanban-board";
