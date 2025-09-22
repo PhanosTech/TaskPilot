@@ -84,7 +84,7 @@ export function TaskDetailDialog({
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [deadline, setDeadline] = useState<Date | undefined>(
-    task.deadline ? new Date(task.deadline) : addDays(new Date(), 4)
+    task.deadline ? new Date(task.deadline) : undefined
   );
   
   const [newLog, setNewLog] = useState("");
@@ -107,7 +107,7 @@ export function TaskDetailDialog({
       setDescription(task.description);
       setStatus(task.status);
       setPriority(task.priority);
-      setDeadline(task.deadline ? new Date(task.deadline) : addDays(new Date(), 4));
+      setDeadline(task.deadline ? new Date(task.deadline) : undefined);
       setEditingLogId(null);
       setDeletingLogId(null);
     }
@@ -118,21 +118,12 @@ export function TaskDetailDialog({
   const completedStoryPoints = task.subtasks.filter(st => st.isCompleted).reduce((sum, st) => sum + st.storyPoints, 0);
 
   const handleSaveChanges = () => {
-    if (!deadline) {
-      toast({
-        title: "Invalid Date",
-        description: "Please select a deadline.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     onUpdateTask(task.id, { 
       title, 
       description, 
       status,
       priority,
-      deadline: deadline.toISOString(),
+      deadline: deadline?.toISOString(),
       storyPoints: storyPoints,
     });
     toast({

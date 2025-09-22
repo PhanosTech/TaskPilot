@@ -298,14 +298,15 @@ export default function ProjectPage() {
                       return (
                         <TableRow
                           key={task.id}
+                          onClick={() => setSelectedTaskId(task.id)}
+                          className="cursor-pointer"
                         >
                           <TableCell 
-                            onClick={() => setSelectedTaskId(task.id)}
-                            className="cursor-pointer font-medium hover:underline"
+                            className="font-medium hover:underline"
                           >
                             {task.title}
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <Select 
                               value={task.status} 
                               onValueChange={(newStatus: TaskStatus) => updateTask(task.id, { status: newStatus })}
@@ -320,10 +321,10 @@ export default function ProjectPage() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell onClick={() => setSelectedTaskId(task.id)} className="cursor-pointer">
+                          <TableCell>
                             {task.storyPoints}
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                              <Popover>
                               <PopoverTrigger asChild>
                                 <Button
@@ -347,7 +348,7 @@ export default function ProjectPage() {
                               </PopoverContent>
                             </Popover>
                           </TableCell>
-                          <TableCell onClick={() => setSelectedTaskId(task.id)} className="cursor-pointer">
+                          <TableCell>
                             <Progress value={progress} className="w-[100px]" />
                           </TableCell>
                         </TableRow>
