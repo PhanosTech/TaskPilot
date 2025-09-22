@@ -30,4 +30,6 @@ This app is ideal for individuals who need to manage a complex workload without 
 -   **State Management**: React Hooks & Context API
 -   **Icons**: [Lucide React](https://lucide.dev/guide/packages/lucide-react)
 
-This project was bootstrapped with [Firebase Studio](https://firebase.google.com/studio).
+This project requires no access to internet or any files on your system besides the development files (this directory. The data is writen to a local json file)
+
+Author B. Tesfa...
