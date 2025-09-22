@@ -243,130 +243,131 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <Tabs defaultValue="tasks">
-            <div className="flex justify-between items-center">
-              <TabsList>
-                <TabsTrigger value="tasks">Tasks</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
-              </TabsList>
-               <CreateTaskDialog
-                  onTaskCreated={handleTaskCreated}
-                  defaultProjectId={project.id}
-                />
-            </div>
-            <TabsContent value="tasks">
-               <div className="flex items-center gap-4 my-4">
-                  <Label>Filter by status:</Label>
-                  {(['To Do', 'In Progress', 'Done'] as TaskStatus[]).map(status => (
-                    <div key={status} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`filter-${status}`}
-                        checked={statusFilters.includes(status)}
-                        onCheckedChange={(checked) => handleStatusFilterChange(status, !!checked)}
-                      />
-                      <Label htmlFor={`filter-${status}`}>{status}</Label>
-                    </div>
-                  ))}
-              </div>
-              <ScrollArea className="h-[500px] border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Story Points</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Progress</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredProjectTasks.map((task) => {
-                      const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
-                      const completedSubtaskPoints = task.subtasks
-                        .filter(st => st.isCompleted)
-                        .reduce((sum, st) => sum + st.storyPoints, 0);
+      <div>
+        <Tabs defaultValue="tasks">
+          <div className="flex justify-between items-center">
+            <TabsList>
+              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
+            </TabsList>
+             <CreateTaskDialog
+                onTaskCreated={handleTaskCreated}
+                defaultProjectId={project.id}
+              />
+          </div>
+          <TabsContent value="tasks">
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
+              <div className="lg:col-span-2">
+                 <div className="flex items-center gap-4 my-4">
+                    <Label>Filter by status:</Label>
+                    {(['To Do', 'In Progress', 'Done'] as TaskStatus[]).map(status => (
+                      <div key={status} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`filter-${status}`}
+                          checked={statusFilters.includes(status)}
+                          onCheckedChange={(checked) => handleStatusFilterChange(status, !!checked)}
+                        />
+                        <Label htmlFor={`filter-${status}`}>{status}</Label>
+                      </div>
+                    ))}
+                </div>
+                <ScrollArea className="h-[500px] border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Story Points</TableHead>
+                        <TableHead>Due Date</TableHead>
+                        <TableHead>Progress</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProjectTasks.map((task) => {
+                        const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+                        const completedSubtaskPoints = task.subtasks
+                          .filter(st => st.isCompleted)
+                          .reduce((sum, st) => sum + st.storyPoints, 0);
 
-                      let progress = 0;
-                      if (task.status === 'Done') {
-                        progress = 100;
-                      } else if (totalSubtaskPoints > 0) {
-                        progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
-                      }
+                        let progress = 0;
+                        if (task.status === 'Done') {
+                          progress = 100;
+                        } else if (totalSubtaskPoints > 0) {
+                          progress = (completedSubtaskPoints / totalSubtaskPoints) * 100;
+                        }
 
-                      return (
-                        <TableRow
-                          key={task.id}
-                          onClick={() => setSelectedTaskId(task.id)}
-                          className="cursor-pointer"
-                        >
-                          <TableCell 
-                            className="font-medium hover:underline"
+                        return (
+                          <TableRow
+                            key={task.id}
+                            onClick={() => setSelectedTaskId(task.id)}
+                            className="cursor-pointer"
                           >
-                            {task.title}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Select 
-                              value={task.status} 
-                              onValueChange={(newStatus: TaskStatus) => updateTask(task.id, { status: newStatus })}
+                            <TableCell 
+                              className="font-medium hover:underline"
                             >
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="To Do">To Do</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Done">Done</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            {task.storyPoints}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                             <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-36 justify-start text-left font-normal",
-                                    !task.deadline && "text-muted-foreground"
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {task.deadline ? format(new Date(task.deadline), "MM/dd/yy") : <span>No date</span>}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                  mode="single"
-                                  selected={task.deadline ? new Date(task.deadline) : undefined}
-                                  onSelect={(date) => updateTask(task.id, { deadline: date?.toISOString() })}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          </TableCell>
-                          <TableCell>
-                            <Progress value={progress} className="w-[100px]" />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </TabsContent>
-            <TabsContent value="notes">
-              <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <div className="lg:col-span-1">
-           <TasksByStatusChart tasks={projectTasks} />
-        </div>
+                              {task.title}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Select 
+                                value={task.status} 
+                                onValueChange={(newStatus: TaskStatus) => updateTask(task.id, { status: newStatus })}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="To Do">To Do</SelectItem>
+                                  <SelectItem value="In Progress">In Progress</SelectItem>
+                                  <SelectItem value="Done">Done</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              {task.storyPoints}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                               <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                      "w-36 justify-start text-left font-normal",
+                                      !task.deadline && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {task.deadline ? format(new Date(task.deadline), "MM/dd/yy") : <span>No date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                  <Calendar
+                                    mode="single"
+                                    selected={task.deadline ? new Date(task.deadline) : undefined}
+                                    onSelect={(date) => updateTask(task.id, { deadline: date?.toISOString() })}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </TableCell>
+                            <TableCell>
+                              <Progress value={progress} className="w-[100px]" />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </div>
+              <div className="lg:col-span-1 pt-12">
+                  <TasksByStatusChart tasks={projectTasks} />
+              </div>
+            </div>
+          </TabsContent>
+          <TabsContent value="notes">
+            <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
+          </TabsContent>
+        </Tabs>
       </div>
       
       {mainNote && (

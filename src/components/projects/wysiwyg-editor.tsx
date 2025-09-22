@@ -5,7 +5,13 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import { Bold, Italic, Heading1, Heading2, Heading3, Pilcrow, List, ListOrdered, Quote, Code, Minus, Image as ImageIcon, ListTodo } from 'lucide-react';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableHeader from '@tiptap/extension-table-header';
+import TableCell from '@tiptap/extension-table-cell';
+import Image from '@tiptap/extension-image';
+import Gapcursor from '@tiptap/extension-gapcursor';
+import { Bold, Italic, Heading1, Heading2, Heading3, Pilcrow, List, ListOrdered, Quote, Code, Minus, Image as ImageIcon, ListTodo, Table as TableIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
@@ -19,6 +25,14 @@ const Toolbar = ({ editor }: { editor: any | null }) => {
   if (!editor) {
     return null;
   }
+
+  const addImage = () => {
+    const url = window.prompt('Enter the image URL');
+
+    if (url) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+  };
 
   return (
     <div className="border border-b-0 rounded-t-md p-2 flex items-center gap-1 flex-wrap">
@@ -128,12 +142,30 @@ const Toolbar = ({ editor }: { editor: any | null }) => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => alert("Image upload not implemented yet")}
-        title="Image (Coming Soon)"
-        disabled
+        onClick={addImage}
+        title="Image"
       >
         <ImageIcon className="h-4 w-4" />
       </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+        title="Insert Table"
+      >
+        <TableIcon className="h-4 w-4" />
+      </Button>
+      {editor.isActive('table') && (
+        <>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().addColumnBefore().run()}>Add Col Before</Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().addColumnAfter().run()}>Add Col After</Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().deleteColumn().run()}>Delete Col</Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().addRowBefore().run()}>Add Row Before</Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().addRowAfter().run()}>Add Row After</Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().deleteRow().run()}>Delete Row</Button>
+          <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().deleteTable().run()}>Delete Table</Button>
+        </>
+      )}
     </div>
   );
 };
@@ -146,6 +178,14 @@ export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
       TaskItem.configure({
         nested: true,
       }),
+      Image,
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Gapcursor,
     ],
     content: content,
     onUpdate: ({ editor }) => {
