@@ -19,17 +19,34 @@ import dynamic from "next/dynamic";
 
 const WysiwygEditor = dynamic(() => import("./wysiwyg-editor").then(mod => mod.WysiwygEditor), { ssr: false });
 
+/**
+ * @interface NotesEditorProps
+ * Props for the NotesEditor component.
+ */
 interface NotesEditorProps {
+  /** The initial array of notes to display and edit. */
   initialNotes: Note[];
+  /** Callback function invoked when the notes are changed. */
   onNotesChange: (notes: Note[]) => void;
 }
 
+/**
+ * @component NotesEditor
+ * A component for managing a hierarchical list of notes. It includes a tree view
+ * for note navigation and a WYSIWYG editor for content creation.
+ * @param {NotesEditorProps} props - The component props.
+ */
 export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(initialNotes.find(n => !n.parentId)?.id || null);
 
   const activeNote = useMemo(() => notes.find((note) => note.id === activeNoteId), [notes, activeNoteId]);
 
+  /**
+   * @function handleAddNote
+   * Adds a new note to the list, optionally as a child of another note.
+   * @param {string} [parentId] - The ID of the parent note.
+   */
   const handleAddNote = (parentId?: string) => {
     const newNote: Note = {
       id: `note-${Date.now()}`,
@@ -43,6 +60,11 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
     onNotesChange(newNotes);
   };
 
+  /**
+   * @function handleDeleteNote
+   * Deletes a note and all of its descendants from the list.
+   * @param {string} noteId - The ID of the note to delete.
+   */
   const handleDeleteNote = (noteId: string) => {
     const notesToDelete = new Set<string>([noteId]);
     let changed = true;
@@ -65,18 +87,35 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
     onNotesChange(newNotes);
   };
   
+  /**
+   * @function handleMoveNote
+   * Moves a note to a new parent or to the top level.
+   * @param {string} noteId - The ID of the note to move.
+   * @param {string} [targetParentId] - The ID of the new parent note. If undefined, moves to the top level.
+   */
   const handleMoveNote = (noteId: string, targetParentId?: string) => {
     const newNotes = notes.map(n => n.id === noteId ? { ...n, parentId: targetParentId } : n);
     setNotes(newNotes);
     onNotesChange(newNotes);
   };
 
+  /**
+   * @function handleToggleCollapse
+   * Toggles the collapsed state of a note with children.
+   * @param {string} noteId - The ID of the note to toggle.
+   */
   const handleToggleCollapse = (noteId: string) => {
     const newNotes = notes.map(n => n.id === noteId ? { ...n, isCollapsed: !n.isCollapsed } : n);
     setNotes(newNotes);
     onNotesChange(newNotes);
   };
   
+  /**
+   * @function handleNoteChange
+   * Updates the title or content of the currently active note.
+   * @param {'title' | 'content'} field - The field to update.
+   * @param {string} value - The new value for the field.
+   */
   const handleNoteChange = (field: 'title' | 'content', value: string) => {
     if (activeNoteId) {
       const newNotes = notes.map((note) =>
@@ -87,6 +126,13 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
     }
   };
 
+  /**
+   * @function renderNoteTree
+   * Recursively renders the hierarchical tree of notes.
+   * @param {string} [parentId] - The ID of the parent note to render children for.
+   * @param {number} [level=0] - The current nesting level for indentation.
+   * @returns {JSX.Element[]} An array of JSX elements representing the note tree.
+   */
   const renderNoteTree = (parentId?: string, level = 0): JSX.Element[] => {
     return notes
       .filter(note => note.parentId === parentId)
@@ -96,25 +142,27 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
 
         return (
           <div key={note.id} style={{ paddingLeft: `${level * 16}px` }}>
-            <div className="relative group flex items-center pr-1">
-              {children.length > 0 ? (
-                <Button variant="ghost" size="icon" onClick={() => handleToggleCollapse(note.id)} className="h-6 w-6 shrink-0">
-                  <ChevronRight className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-90")} />
-                </Button>
-              ) : (
-                <div className="h-6 w-6 shrink-0" />
-              )}
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start text-left truncate h-8 px-2",
-                  note.id === activeNoteId && "bg-accent text-accent-foreground"
+            <div className="group flex items-center justify-between pr-1 hover:bg-muted/50 rounded-md">
+              <div className="flex items-center flex-1 min-w-0">
+                {children.length > 0 ? (
+                  <Button variant="ghost" size="icon" onClick={() => handleToggleCollapse(note.id)} className="h-6 w-6 shrink-0">
+                    <ChevronRight className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-90")} />
+                  </Button>
+                ) : (
+                  <div className="h-6 w-6 shrink-0" />
                 )}
-                onClick={() => setActiveNoteId(note.id)}
-              >
-                {note.title}
-              </Button>
-              <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100">
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-start text-left truncate h-8 px-2",
+                    note.id === activeNoteId && "bg-accent text-accent-foreground"
+                  )}
+                  onClick={() => setActiveNoteId(note.id)}
+                >
+                  <span className="truncate">{note.title}</span>
+                </Button>
+              </div>
+              <div className="opacity-0 group-hover:opacity-100 shrink-0">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                      <Button variant="ghost" size="icon" className="h-6 w-6">
