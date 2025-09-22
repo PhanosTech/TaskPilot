@@ -3,7 +3,7 @@
 
 import { useState, useContext, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import type { Task, TaskPriority, Subtask } from "@/lib/types";
+import type { Task, TaskPriority } from "@/lib/types";
 import { DataContext } from "@/context/data-context";
 import {
   Card,
@@ -55,7 +55,8 @@ export default function DashboardPage() {
     addSubtask, 
     removeSubtask, 
     addLog,
-    updateLog
+    updateLog,
+    deleteLog,
   } = useContext(DataContext);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showToDo, setShowToDo] = useState(false);
@@ -82,17 +83,6 @@ export default function DashboardPage() {
       )
       .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
   }, [projects, tasks, showToDo]);
-
-  /**
-   * @function handleSubtaskChange
-   * A handler to update a subtask's properties.
-   * @param {string} taskId - The ID of the parent task.
-   * @param {string} subtaskId - The ID of the subtask to update.
-   * @param {Partial<Subtask>} changes - The changes to apply to the subtask.
-   */
-  const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
-    updateSubtask(taskId, subtaskId, changes);
-  };
 
   /**
    * @function handleTaskClick
@@ -228,12 +218,12 @@ export default function DashboardPage() {
           open={!!selectedTask} 
           onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={updateTask}
-          onSubtaskChange={handleSubtaskChange}
+          onSubtaskChange={updateSubtask}
           onAddSubtask={addSubtask}
           onRemoveSubtask={removeSubtask}
           onAddLog={addLog}
           onUpdateLog={updateLog}
-          onDeleteLog={() => {}} // onDeleteLog is required by the component
+          onDeleteLog={deleteLog}
         />
       )}
     </>

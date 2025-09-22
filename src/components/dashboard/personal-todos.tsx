@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -17,18 +17,56 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Pencil, Check, X, ArrowDown, ArrowUp } from "lucide-react";
 
+/**
+ * @type Todo
+ * Represents a single personal todo item.
+ */
 type Todo = {
   id: string;
   text: string;
   completed: boolean;
 };
 
+const IN_PROGRESS_STORAGE_KEY = "taskpilot-personal-todos-in-progress";
+const BACKLOG_STORAGE_KEY = "taskpilot-personal-todos-backlog";
+
+/**
+ * @component PersonalTodos
+ * A component for managing a personal to-do list, separate from project tasks.
+ * It supports adding, editing, deleting, completing, and moving todos between "In Progress" and "Backlog" lists.
+ * The state is persisted in local storage.
+ */
 export function PersonalTodos() {
   const [inProgressTodos, setInProgressTodos] = useState<Todo[]>([]);
   const [backlogTodos, setBacklogTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState("");
   const [editingTodo, setEditingTodo] = useState<{ id: string; text: string } | null>(null);
 
+  // Load todos from local storage on initial render
+  useEffect(() => {
+    const savedInProgress = localStorage.getItem(IN_PROGRESS_STORAGE_KEY);
+    if (savedInProgress) {
+      setInProgressTodos(JSON.parse(savedInProgress));
+    }
+    const savedBacklog = localStorage.getItem(BACKLOG_STORAGE_KEY);
+    if (savedBacklog) {
+      setBacklogTodos(JSON.parse(savedBacklog));
+    }
+  }, []);
+
+  // Save todos to local storage whenever they change
+  useEffect(() => {
+    localStorage.setItem(IN_PROGRESS_STORAGE_KEY, JSON.stringify(inProgressTodos));
+  }, [inProgressTodos]);
+
+  useEffect(() => {
+    localStorage.setItem(BACKLOG_STORAGE_KEY, JSON.stringify(backlogTodos));
+  }, [backlogTodos]);
+  
+  /**
+   * @function handleAddTodo
+   * Adds a new todo item to the "In Progress" list.
+   */
   const handleAddTodo = () => {
     if (newTodo.trim() === "") return;
     const newTodoItem: Todo = {
@@ -40,6 +78,12 @@ export function PersonalTodos() {
     setNewTodo("");
   };
   
+  /**
+   * @function handleToggleTodo
+   * Toggles the completion status of a todo item in either list.
+   * @param {string} id - The ID of the todo to toggle.
+   * @param {'in-progress' | 'backlog'} list - The list the todo belongs to.
+   */
   const handleToggleTodo = (id: string, list: 'in-progress' | 'backlog') => {
     const listSetter = list === 'in-progress' ? setInProgressTodos : setBacklogTodos;
     listSetter(prev => prev.map(todo =>
@@ -47,6 +91,12 @@ export function PersonalTodos() {
     ));
   };
 
+  /**
+   * @function handleMoveTodo
+   * Moves a todo item from one list to the other.
+   * @param {string} id - The ID of the todo to move.
+   * @param {'in-progress' | 'backlog'} from - The list the todo is currently in.
+   */
   const handleMoveTodo = (id: string, from: 'in-progress' | 'backlog') => {
     if (from === 'in-progress') {
       const todoToMove = inProgressTodos.find(t => t.id === id);
@@ -63,11 +113,21 @@ export function PersonalTodos() {
     }
   };
 
+  /**
+   * @function handleDeleteTodo
+   * Deletes a todo item from a specified list.
+   * @param {string} id - The ID of the todo to delete.
+   * @param {'in-progress' | 'backlog'} list - The list the todo belongs to.
+   */
   const handleDeleteTodo = (id: string, list: 'in-progress' | 'backlog') => {
     const listSetter = list === 'in-progress' ? setInProgressTodos : setBacklogTodos;
     listSetter(prev => prev.filter(todo => todo.id !== id));
   };
 
+  /**
+   * @function handleUpdateTodo
+   * Saves the changes after editing a todo item's text.
+   */
   const handleUpdateTodo = () => {
     if (!editingTodo) return;
 
@@ -81,11 +141,23 @@ export function PersonalTodos() {
     setEditingTodo(null);
   };
   
+  /**
+   * @function handleClearCompleted
+   * Removes all completed todos from both lists.
+   */
   const handleClearCompleted = () => {
     setInProgressTodos(prev => prev.filter(t => !t.completed));
     setBacklogTodos(prev => prev.filter(t => !t.completed));
   };
 
+  /**
+   * @function renderTodoList
+   * Renders a list of todo items with their controls.
+   * @param {Todo[]} todos - The array of todos to render.
+   * @param {'in-progress' | 'backlog'} listType - The type of list being rendered.
+   * @param {string} title - The title to display for the list section.
+   * @returns {JSX.Element} The rendered todo list.
+   */
   const renderTodoList = (
     todos: Todo[], 
     listType: 'in-progress' | 'backlog', 
@@ -146,7 +218,7 @@ export function PersonalTodos() {
   const hasCompleted = inProgressTodos.some(t => t.completed) || backlogTodos.some(t => t.completed);
 
   return (
-    <Card className="col-span-1 flex flex-col">
+    <Card className="col-span-1 lg:col-span-3 flex flex-col">
       <CardHeader>
         <CardTitle>Personal Todos</CardTitle>
         <CardDescription>

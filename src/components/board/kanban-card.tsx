@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useContext } from "react";
 import {
   Card,
   CardContent,
@@ -19,14 +19,18 @@ import {
 } from "@/components/ui/tooltip";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { DataContext } from "@/context/data-context";
-import { useContext } from "react";
 import { Calendar, MessageSquare, Star } from "lucide-react";
-import type { Task, TaskPriority } from "@/lib/types";
+import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/**
+ * @interface KanbanCardProps
+ * Props for the KanbanCard component.
+ */
 interface KanbanCardProps {
+  /** The task object to display in the card. */
   task: Task;
-  onStatusChange: (newStatus: Task['status']) => void;
+  /** Callback function to handle double-clicking the card, typically to open a detail view. */
   onDoubleClick: () => void;
 }
 
@@ -36,37 +40,42 @@ const priorityColors: Record<TaskPriority, string> = {
     Low: "bg-green-500",
 };
 
+/**
+ * @component KanbanCard
+ * Represents a single task card on the Kanban board.
+ * It is draggable and displays key information about the task.
+ * @param {KanbanCardProps} props - The component props.
+ */
 export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
-    const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const { 
-      updateTask, 
-      addSubtask, 
-      removeSubtask, 
-      addLog 
-    } = useContext(DataContext);
-
-
+    
     const progress = useMemo(() => {
         if (task.status === 'Done') return 100;
-        if (task.subtasks.length === 0) return 0;
+        
+        const totalSubtaskPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
+        if (totalSubtaskPoints === 0) return 0;
+        
+        const completedSubtaskPoints = task.subtasks
+            .filter(st => st.isCompleted)
+            .reduce((sum, st) => sum + st.storyPoints, 0);
 
-        const completedSubtasks = task.subtasks.filter(st => st.isCompleted);
-        return (completedSubtasks.length / task.subtasks.length) * 100;
+        return (completedSubtaskPoints / totalSubtaskPoints) * 100;
     }, [task.subtasks, task.status]);
-
-    const handleSubtaskChange = (taskId: string, subtaskId: string, isCompleted: boolean) => {
-        const newSubtasks = task.subtasks.map(sub => 
-            sub.id === subtaskId ? { ...sub, isCompleted } : sub
-        );
-        updateTask(taskId, { subtasks: newSubtasks });
-    };
     
+    /**
+     * @function handleDragStart
+     * Sets the task ID in the data transfer object when dragging starts.
+     * @param {React.DragEvent<HTMLDivElement>} e - The drag event.
+     */
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
       e.dataTransfer.setData("taskId", task.id);
       setIsDragging(true);
     };
 
+    /**
+     * @function handleDragEnd
+     * Resets the dragging state when the drag operation ends.
+     */
     const handleDragEnd = () => {
       setIsDragging(false);
     };
@@ -79,7 +88,7 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
                         "mb-4 cursor-pointer hover:shadow-lg transition-all",
                         isDragging && "opacity-50 scale-105 shadow-xl"
                     )}
-                    onDoubleClick={() => setIsDetailViewOpen(true)}
+                    onDoubleClick={onDoubleClick}
                     draggable="true"
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
@@ -123,16 +132,6 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
                   </CardFooter>
                 </Card>
             </TooltipProvider>
-            <TaskDetailDialog
-                open={isDetailViewOpen}
-                onOpenChange={setIsDetailViewOpen}
-                task={task}
-                onUpdateTask={updateTask}
-                onSubtaskChange={handleSubtaskChange}
-                onAddSubtask={addSubtask}
-                onRemoveSubtask={removeSubtask}
-                onAddLog={addLog}
-            />
         </>
     );
 }

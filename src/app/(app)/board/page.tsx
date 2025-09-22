@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useContext, useEffect } from "react";
-import type { Task, TaskStatus, Subtask, Log } from "@/lib/types";
+import type { Task } from "@/lib/types";
 import { DataContext } from "@/context/data-context";
 import { KanbanBoard } from "@/components/board/kanban-board";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,11 +31,6 @@ export default function BoardPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
 
-  const selectedTask = useMemo(() => {
-    if (!selectedTaskId) return null;
-    return tasks.find(t => t.id === selectedTaskId) || null;
-  }, [selectedTaskId, tasks]);
-  
   // Re-fetch the selected task from the main tasks array whenever it changes.
   // This ensures the dialog always has the latest data.
   const liveSelectedTask = useMemo(() => {
@@ -63,9 +58,9 @@ export default function BoardPage() {
   /**
    * @function handleCreateTask
    * Creates a new task.
-   * @param {Omit<Task, 'id' | 'logs'>} newTaskData - The data for the new task.
+   * @param {Omit<Task, 'id' | 'logs' | 'storyPoints'>} newTaskData - The data for the new task.
    */
-  const handleCreateTask = (newTaskData: Omit<Task, 'id' | 'logs'>) => {
+  const handleCreateTask = (newTaskData: Omit<Task, 'id' | 'logs' | 'storyPoints'>) => {
     createTask(newTaskData);
   };
 
@@ -77,17 +72,6 @@ export default function BoardPage() {
    */
   const handleUpdateTask = (taskId: string, updatedData: Partial<Task>) => {
     updateTask(taskId, updatedData);
-  };
-
-  /**
-   * @function handleSubtaskChange
-   * Updates a specific subtask within a task.
-   * @param {string} taskId - The ID of the parent task.
-   * @param {string} subtaskId - The ID of the subtask to update.
-   * @param {Partial<Subtask>} changes - The partial data to update the subtask with.
-   */
-  const handleSubtaskChange = (taskId: string, subtaskId: string, changes: Partial<Subtask>) => {
-    updateSubtask(taskId, subtaskId, changes);
   };
   
   /**
@@ -131,7 +115,7 @@ export default function BoardPage() {
           open={!!liveSelectedTask} 
           onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
-          onSubtaskChange={handleSubtaskChange}
+          onSubtaskChange={updateSubtask}
           onAddSubtask={addSubtask}
           onRemoveSubtask={removeSubtask}
           onAddLog={addLog}

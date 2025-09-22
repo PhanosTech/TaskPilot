@@ -17,6 +17,10 @@ const debounce = <F extends (...args: any[]) => void>(func: F, delay: number) =>
   };
 };
 
+/**
+ * @interface DataContextType
+ * Defines the shape of the data and functions provided by the DataContext.
+ */
 interface DataContextType {
   projects: Project[];
   tasks: Task[];
@@ -34,8 +38,13 @@ interface DataContextType {
   removeSubtask: (taskId:string, subtaskId: string) => void;
   addLog: (taskId: string, logContent: string) => void;
   updateLog: (taskId: string, logId: string, newContent: string) => void;
+  deleteLog: (taskId: string, logId: string) => void;
 }
 
+/**
+ * @const DataContext
+ * The React context for providing application data and manipulation functions.
+ */
 export const DataContext = createContext<DataContextType>({
   projects: [],
   tasks: [],
@@ -53,8 +62,16 @@ export const DataContext = createContext<DataContextType>({
   removeSubtask: () => {},
   addLog: () => {},
   updateLog: () => {},
+  deleteLog: () => {},
 });
 
+/**
+ * @provider DataProvider
+ * A component that provides the DataContext to its children.
+ * It manages the state of projects and tasks, and handles data persistence.
+ * @param {object} props - The component props.
+ * @param {ReactNode} props.children - The child components to render.
+ */
 export function DataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -244,6 +261,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const deleteLog = useCallback((taskId: string, logId: string) => {
+    setTasks(prev =>
+      prev.map(task => {
+        if (task.id === taskId) {
+          const newLogs = task.logs.filter(log => log.id !== logId);
+          return { ...task, logs: newLogs };
+        }
+        return task;
+      })
+    );
+  }, []);
+
   const value = {
     projects,
     tasks,
@@ -261,6 +290,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     removeSubtask,
     addLog,
     updateLog,
+    deleteLog,
   };
 
   if (isLoading) {
