@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import dynamic from "next/dynamic";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 const WysiwygEditor = dynamic(() => import("./wysiwyg-editor").then(mod => mod.WysiwygEditor), { ssr: false });
 
@@ -154,7 +155,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-start text-left h-8 px-2",
+                    "w-full justify-start text-left h-8 px-2 truncate",
                     note.id === activeNoteId && "bg-accent text-accent-foreground"
                   )}
                   onClick={() => setActiveNoteId(note.id)}
@@ -198,39 +199,47 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[700px] mt-4">
-      <div className="col-span-1 border rounded-lg p-2 flex flex-col">
-        <Button onClick={() => handleAddNote()} className="mb-2">
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Note
-        </Button>
-        <ScrollArea className="flex-1">
-           <div className="flex flex-col gap-1 pr-2 min-w-max">
-            {renderNoteTree()}
-          </div>
-        </ScrollArea>
-      </div>
-      <div className="col-span-3 border rounded-lg p-4 flex flex-col gap-4">
-        {activeNote ? (
-          <>
-            <Input
-              value={activeNote.title}
-              onChange={(e) => handleNoteChange('title', e.target.value)}
-              className="text-lg font-bold"
-            />
-            <div className="flex-1 h-full">
-              <WysiwygEditor
-                key={activeNote.id}
-                content={activeNote.content}
-                onChange={(content) => handleNoteChange('content', content)}
-              />
+    <ResizablePanelGroup
+      direction="horizontal"
+      className="w-full h-[700px] border rounded-lg mt-4"
+    >
+      <ResizablePanel defaultSize={25} minSize={15}>
+        <div className="p-2 flex flex-col h-full">
+          <Button onClick={() => handleAddNote()} className="mb-2">
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Note
+          </Button>
+          <ScrollArea className="flex-1">
+             <div className="flex flex-col gap-1 pr-2 min-w-max">
+              {renderNoteTree()}
             </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p>Select a note or create a new one to get started.</p>
-          </div>
-        )}
-      </div>
-    </div>
+          </ScrollArea>
+        </div>
+      </ResizablePanel>
+      <ResizableHandle withHandle />
+      <ResizablePanel defaultSize={75} minSize={30}>
+        <div className="p-4 flex flex-col gap-4 h-full">
+          {activeNote ? (
+            <>
+              <Input
+                value={activeNote.title}
+                onChange={(e) => handleNoteChange('title', e.target.value)}
+                className="text-lg font-bold"
+              />
+              <div className="flex-1 h-full">
+                <WysiwygEditor
+                  key={activeNote.id}
+                  content={activeNote.content}
+                  onChange={(content) => handleNoteChange('content', content)}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>Select a note or create a new one to get started.</p>
+            </div>
+          )}
+        </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
