@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState, useContext } from "react";
+import { useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -17,10 +17,8 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
-import { DataContext } from "@/context/data-context";
 import { Calendar, MessageSquare, Star } from "lucide-react";
-import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
+import type { Task, TaskPriority } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -30,6 +28,8 @@ import { cn } from "@/lib/utils";
 interface KanbanCardProps {
   /** The task object to display in the card. */
   task: Task;
+  /** The name of the project this task belongs to. */
+  projectName: string;
   /** Callback function to handle double-clicking the card, typically to open a detail view. */
   onDoubleClick: () => void;
 }
@@ -46,7 +46,7 @@ const priorityColors: Record<TaskPriority, string> = {
  * It is draggable and displays key information about the task.
  * @param {KanbanCardProps} props - The component props.
  */
-export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
+export function KanbanCard({ task, projectName, onDoubleClick }: KanbanCardProps) {
     const [isDragging, setIsDragging] = useState(false);
     
     const progress = useMemo(() => {
@@ -85,7 +85,7 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
             <TooltipProvider>
                 <Card 
                     className={cn(
-                        "mb-4 cursor-pointer hover:shadow-lg transition-all",
+                        "mb-2 cursor-pointer hover:shadow-lg transition-all",
                         isDragging && "opacity-50 scale-105 shadow-xl"
                     )}
                     onDoubleClick={onDoubleClick}
@@ -93,11 +93,12 @@ export function KanbanCard({ task, onDoubleClick }: KanbanCardProps) {
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
-                    <CardHeader className="p-3">
-                        <div className="flex justify-between items-center">
+                    <CardHeader className="p-3 pb-2">
+                        <div className="flex justify-between items-center mb-1">
+                             <p className="text-xs font-medium text-muted-foreground truncate pr-2">{projectName}</p>
                             <Badge variant="outline">{task.status}</Badge>
                         </div>
-                        <CardTitle className="text-base pt-1">{task.title}</CardTitle>
+                        <CardTitle className="text-base pt-0">{task.title}</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0">
                        <div className="flex space-x-2 text-sm text-muted-foreground">

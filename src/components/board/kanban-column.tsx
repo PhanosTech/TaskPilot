@@ -6,8 +6,9 @@ import { KanbanCard } from "./kanban-card";
 import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
 import { CreateTaskDialog } from "../tasks/create-task-dialog";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { cn } from "@/lib/utils";
+import { DataContext } from "@/context/data-context";
 
 /**
  * @interface KanbanColumnProps
@@ -36,6 +37,7 @@ interface KanbanColumnProps {
  */
 export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, onTaskSelect, selectedProjectId }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const { projects } = useContext(DataContext);
   
   // A task can only be created if a specific project is selected, not "all".
   const canCreateTask = selectedProjectId !== 'all';
@@ -95,13 +97,17 @@ export function KanbanColumn({ status, tasks, onTaskStatusChange, onCreateTask, 
         onDrop={handleDrop}
       >
         {tasks.length > 0 ? (
-          tasks.map((task) => (
-            <KanbanCard 
-              key={task.id} 
-              task={task} 
-              onDoubleClick={() => onTaskSelect(task)}
-            />
-          ))
+          tasks.map((task) => {
+            const project = projects.find(p => p.id === task.projectId);
+            return (
+              <KanbanCard 
+                key={task.id} 
+                task={task} 
+                projectName={project?.name || "Unknown Project"}
+                onDoubleClick={() => onTaskSelect(task)}
+              />
+            )
+          })
         ) : (
           <div className="flex items-center justify-center h-full">
             <p className="text-sm text-muted-foreground text-center py-4">
