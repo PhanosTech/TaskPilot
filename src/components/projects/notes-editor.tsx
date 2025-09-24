@@ -203,7 +203,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
       direction="horizontal"
       className="w-full h-[700px] border rounded-lg mt-4"
     >
-      <ResizablePanel defaultSize={25} minSize={15}>
+      <ResizablePanel defaultSize={25} minSize={20} className="min-w-[200px] max-w-[500px]">
         <div className="p-2 flex flex-col h-full">
           <Button onClick={() => handleAddNote()} className="mb-2">
             <PlusCircle className="mr-2 h-4 w-4" /> Add Note
@@ -216,7 +216,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
         </div>
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={75} minSize={30} className="min-w-0 max-w-[50vw]">
+      <ResizablePanel defaultSize={75} minSize={30} className="min-w-0">
         <div className="p-4 flex flex-col gap-4 h-full">
           {activeNote ? (
             <>
