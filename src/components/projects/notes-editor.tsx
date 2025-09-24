@@ -225,7 +225,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
                 onChange={(e) => handleNoteChange('title', e.target.value)}
                 className="text-lg font-bold"
               />
-              <div className="flex-1 h-full">
+              <div className="flex-1 h-full min-w-0">
                 <WysiwygEditor
                   key={activeNote.id}
                   content={activeNote.content}
