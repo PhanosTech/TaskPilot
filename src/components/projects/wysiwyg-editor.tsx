@@ -10,11 +10,12 @@ import TableRow from '@tiptap/extension-table-row';
 import TableHeader from '@tiptap/extension-table-header';
 import TableCell from '@tiptap/extension-table-cell';
 import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 import Gapcursor from '@tiptap/extension-gapcursor';
-import { Bold, Italic, Heading1, Heading2, Heading3, Pilcrow, List, ListOrdered, Quote, Code, Minus, Image as ImageIcon, ListTodo, Table as TableIcon } from 'lucide-react';
+import { Bold, Italic, Heading1, Heading2, Heading3, Pilcrow, List, ListOrdered, Quote, Code, Minus, Image as ImageIcon, ListTodo, Table as TableIcon, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 interface WysiwygEditorProps {
   content: string;
@@ -33,6 +34,26 @@ const Toolbar = ({ editor }: { editor: any | null }) => {
       editor.chain().focus().setImage({ src: url }).run();
     }
   };
+
+  const setLink = useCallback(() => {
+    const previousUrl = editor.getAttributes('link').href;
+    const url = window.prompt('URL', previousUrl);
+
+    // cancelled
+    if (url === null) {
+      return;
+    }
+
+    // empty
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+
+    // update link
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }, [editor]);
+
 
   return (
     <div className="border border-b-0 rounded-t-md p-2 flex items-center gap-1 flex-wrap">
@@ -55,6 +76,15 @@ const Toolbar = ({ editor }: { editor: any | null }) => {
         title="Italic"
       >
         <Italic className="h-4 w-4" />
+      </Button>
+       <Button
+        variant="ghost"
+        size="sm"
+        onClick={setLink}
+        className={cn(editor.isActive('link') ? 'bg-accent' : '')}
+        title="Link"
+      >
+        <LinkIcon className="h-4 w-4" />
       </Button>
        <Button
         variant="ghost"
@@ -179,6 +209,10 @@ export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
         nested: true,
       }),
       Image,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+      }),
       Table.configure({
         resizable: true,
       }),
@@ -194,7 +228,7 @@ export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none w-full h-full focus:outline-none p-2',
+        class: 'prose dark:prose-invert max-w-none w-full h-full focus:outline-none p-2 break-words',
       },
     },
   });
