@@ -90,6 +90,10 @@
     text-decoration: line-through;
     color: hsl(var(--muted-foreground));
   }
+  
+  .tiptap p {
+    word-break: break-all;
+  }
 }
 
 @layer utilities {
