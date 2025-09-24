@@ -228,7 +228,7 @@ export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none w-full h-full focus:outline-none p-2 break-all',
+        class: 'prose dark:prose-invert max-w-none w-full h-full focus:outline-none p-2',
       },
     },
   });
@@ -242,7 +242,7 @@ export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
   return (
     <div className="w-full h-full border rounded-md flex flex-col">
       <Toolbar editor={editor} />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-w-0">
         <EditorContent editor={editor} />
       </div>
     </div>
