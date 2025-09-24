@@ -228,7 +228,7 @@ export function WysiwygEditor({ content, onChange }: WysiwygEditorProps) {
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none w-full h-full focus:outline-none p-2 break-words',
+        class: 'prose dark:prose-invert max-w-none w-full h-full focus:outline-none p-2 break-all',
       },
     },
   });
