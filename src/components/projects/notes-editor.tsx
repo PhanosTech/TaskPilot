@@ -216,7 +216,7 @@ export function NotesEditor({ initialNotes, onNotesChange }: NotesEditorProps) {
         </div>
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={75} minSize={30} className="min-w-0">
+      <ResizablePanel defaultSize={75} minSize={30} className="min-w-0 max-w-[50vw]">
         <div className="p-4 flex flex-col gap-4 h-full">
           {activeNote ? (
             <>
