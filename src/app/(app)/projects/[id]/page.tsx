@@ -365,7 +365,9 @@ export default function ProjectPage() {
             </div>
           </TabsContent>
           <TabsContent value="notes">
-            <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
+             <div className="w-full">
+                <NotesTabContent initialNotes={project.notes || []} onNotesChange={handleNotesChange} />
+             </div>
           </TabsContent>
         </Tabs>
       </div>
