@@ -92,7 +92,7 @@
   }
   
   .tiptap p {
-    overflow-wrap: break-word; /* or break-all */
+    overflow-wrap: break-word;
   }
 }
 

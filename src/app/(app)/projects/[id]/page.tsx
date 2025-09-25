@@ -205,7 +205,7 @@ export default function ProjectPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{width: 'calc(100vw - 105px)'}}>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
