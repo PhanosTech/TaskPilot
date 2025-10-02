@@ -1,0 +1,12 @@
+
+.next
+.turbo
+node_modules
+dist
+.env*.local
+.DS_Store
+*.db
+workspace
+.vscode
+.idx
+package-lock.json

@@ -1,0 +1,252 @@
+"use client";
+
+import { useState, useContext, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
+import { DataContext } from "@/context/data-context";
+import { TASK_PRIORITY_ORDER, DEFAULT_PROJECT_PRIORITY } from "@/lib/constants";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
+import { PersonalTodos } from "@/components/dashboard/personal-todos";
+import { Scratchpad } from "@/components/dashboard/scratchpad";
+
+const priorityColors: Record<TaskPriority, string> = {
+  High: "bg-red-500",
+  Medium: "bg-yellow-500",
+  Low: "bg-green-500",
+};
+
+// Use centralized task priority ordering from constants
+const priorityOrder: Record<TaskPriority, number> = TASK_PRIORITY_ORDER;
+
+/**
+ * @page DashboardPage
+ * The main dashboard of the application, providing a high-level overview of projects and tasks.
+ * It includes an active work queue, personal todos, and a scratchpad.
+ */
+export default function DashboardPage() {
+  const {
+    projects,
+    tasks,
+    categories,
+    updateTask,
+    deleteTask,
+    updateSubtask,
+    addSubtask,
+    removeSubtask,
+    addLog,
+    updateLog,
+    deleteLog,
+  } = useContext(DataContext);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showToDo, setShowToDo] = useState(false);
+  const router = useRouter();
+
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId || !tasks) return null;
+    return tasks.find((t) => t.id === selectedTaskId) || null;
+  }, [selectedTaskId, tasks]);
+
+  const activeWorkQueue = useMemo(() => {
+    if (!projects || !tasks) return [];
+
+    const inProgressProjectIds = new Set(
+      projects.filter((p) => p.status === "In Progress").map((p) => p.id),
+    );
+
+    const statusesToShow: TaskStatus[] = ["In Progress"];
+    if (showToDo) {
+      statusesToShow.push("To Do");
+    }
+
+    return tasks
+      .filter(
+        (t) =>
+          inProgressProjectIds.has(t.projectId) &&
+          statusesToShow.includes(t.status),
+      )
+      .sort((a, b) => {
+        const projectA = projects.find((p) => p.id === a.projectId);
+        const projectB = projects.find((p) => p.id === b.projectId);
+
+        const projectPriorityA = projectA?.priority ?? 4;
+        const projectPriorityB = projectB?.priority ?? 4;
+
+        // Sort projects so higher-priority projects appear first.
+        // Use descending numeric order for project priority.
+        if (projectPriorityA !== projectPriorityB) {
+          return projectPriorityB - projectPriorityA;
+        }
+
+        // For tasks within the same project priority, sort by task priority (High -> Low).
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      });
+  }, [projects, tasks, showToDo]);
+
+  /**
+   * @function handleTaskClick
+   * A handler to select a task and open its detail view.
+   * @param {Task} task - The task that was clicked.
+   */
+  const handleTaskClick = (task: Task) => {
+    setSelectedTaskId(task.id);
+  };
+
+  /**
+   * @function handleTaskDoubleClick
+   * A handler for navigating to a task's parent project page on double-click.
+   * @param {string} projectId - The ID of the project to navigate to.
+   */
+  const handleTaskDoubleClick = (projectId: string) => {
+    router.push(`/projects/${projectId}`);
+  };
+
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Active Work Queue</CardTitle>
+                <CardDescription>
+                  Tasks from in-progress projects that need your attention.
+                </CardDescription>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="show-todo"
+                  checked={showToDo}
+                  onCheckedChange={setShowToDo}
+                />
+                <Label htmlFor="show-todo">Show "To Do"</Label>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Progress</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeWorkQueue.map((task) => {
+                    const project = projects.find(
+                      (p) => p.id === task.projectId,
+                    );
+                    const category = categories.find(
+                      (c) => c.id === project?.categoryId,
+                    );
+                    const totalSubtaskPoints = task.subtasks.reduce(
+                      (sum, st) => sum + st.storyPoints,
+                      0,
+                    );
+                    const completedSubtaskPoints = task.subtasks
+                      .filter((st) => st.isCompleted)
+                      .reduce((sum, st) => sum + st.storyPoints, 0);
+
+                    let progress = 0;
+                    if (task.status === "Done") {
+                      progress = 100;
+                    } else if (totalSubtaskPoints > 0) {
+                      progress =
+                        (completedSubtaskPoints / totalSubtaskPoints) * 100;
+                    }
+
+                    return (
+                      <TableRow
+                        key={task.id}
+                        onClick={() => handleTaskClick(task)}
+                        onDoubleClick={() =>
+                          handleTaskDoubleClick(task.projectId)
+                        }
+                        className="cursor-pointer"
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`}
+                            />
+                            <div className="font-medium">{task.title}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{project?.name}</span>
+                            {category && category.id !== "cat-default" && (
+                              <Badge
+                                variant="outline"
+                                style={{
+                                  borderColor: category.color,
+                                  color: category.color,
+                                }}
+                                className="text-xs"
+                              >
+                                {category.name}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{task.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Progress value={progress} className="w-[100px]" />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <PersonalTodos />
+      </div>
+      <div className="grid gap-4">
+        <Scratchpad />
+      </div>
+
+      {selectedTask && (
+        <TaskDetailDialog
+          task={selectedTask}
+          open={!!selectedTask}
+          onOpenChange={(isOpen) => !isOpen && setSelectedTaskId(null)}
+          onUpdateTask={updateTask}
+          onDeleteTask={deleteTask}
+          onSubtaskChange={updateSubtask}
+          onAddSubtask={addSubtask}
+          onRemoveSubtask={removeSubtask}
+          onAddLog={addLog}
+          onUpdateLog={updateLog}
+          onDeleteLog={deleteLog}
+        />
+      )}
+    </>
+  );
+}

@@ -1,0 +1,107 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 50% 98%;
+    --foreground: 220 10% 20%;
+    --card: 220 50% 100%;
+    --card-foreground: 220 10% 20%;
+    --popover: 220 50% 100%;
+    --popover-foreground: 220 10% 20%;
+    --primary: 200 85% 50%;
+    --primary-foreground: 220 50% 98%;
+    --secondary: 220 15% 90%;
+    --secondary-foreground: 220 10% 20%;
+    --muted: 220 15% 90%;
+    --muted-foreground: 220 5% 45%;
+    --accent: 20 90% 60%;
+    --accent-foreground: 220 50% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 20% 85%;
+    --input: 220 20% 88%;
+    --ring: 200 85% 50%;
+    --chart-1: 200 70% 55%;
+    --chart-2: 170 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 220 15% 10%;
+    --foreground: 220 20% 90%;
+    --card: 220 15% 12%;
+    --card-foreground: 220 20% 90%;
+    --popover: 220 15% 10%;
+    --popover-foreground: 220 20% 90%;
+    --primary: 200 80% 55%;
+    --primary-foreground: 220 15% 10%;
+    --secondary: 220 10% 20%;
+    --secondary-foreground: 220 20% 90%;
+    --muted: 220 10% 20%;
+    --muted-foreground: 220 10% 60%;
+    --accent: 20 80% 55%;
+    --accent-foreground: 220 15% 10%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 10% 25%;
+    --input: 220 10% 25%;
+    --ring: 200 80% 55%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body {
+    @apply bg-background text-foreground;
+  }
+  
+  ul[data-type="taskList"] {
+    list-style: none;
+    padding: 0;
+  }
+
+  ul[data-type="taskList"] li {
+    display: flex;
+    align-items: center;
+  }
+
+  ul[data-type="taskList"] li > label {
+    margin-right: 0.5rem;
+    cursor: pointer;
+  }
+
+  ul[data-type="taskList"] li > div {
+    flex-grow: 1;
+  }
+  
+  ul[data-type="taskList"] li[data-checked="true"] > div > p {
+    text-decoration: line-through;
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .tiptap p {
+    word-break: break-all;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
