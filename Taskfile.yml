@@ -1,0 +1,124 @@
+version: "3"
+
+env:
+  APPNAME: "TaskPilot"
+  VERSION: "v4.0.0"
+  NODE: "node"
+  NPM: "npm"
+  DB_PATH: "test/tasks.db"
+
+dotenv: [".env"]
+
+tasks:
+  install:
+    desc: Install dependencies
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM install
+
+  init:
+    desc: Initialize testing environment and create default DuckDB file
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - mkdir -p $(dirname "$DB_PATH")
+      - touch "$DB_PATH"
+
+  cleanup:
+    desc: Clean up build artifacts
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - rm -rf .next dist/
+
+  build:
+    desc: Build the Next.js application
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run build
+
+  update-app-label:
+    desc: Update the sidebar app label displayed in the UI
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NODE scripts/update-app-label.mjs {{.CLI_ARGS}}
+
+  pack:
+    desc: Build Next.js and package as Electron app into dist/
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run pack
+
+  build-electron:
+    desc: Alias for pack task - Build and package as Electron app
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - task: pack
+
+  dev:
+    desc: Run Electron app in development mode with default DB path
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run electron-dev
+
+  dev-web:
+    desc: Run web development server
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run dev
+
+  run:
+    desc: Run production web server
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run start
+
+  run-electron:
+    desc: Run the packaged Electron app (assumes dist/ exists)
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - find dist -name "$APPNAME*" -type f -executable -print0 | xargs -0 -I {} sh -c 'echo "Running {}"; "{}"'
+
+  release:
+    desc: Build the Electron app for Linux and create a GitHub Release with version v1.0.0
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM run pack -- --linux
+      - gh release create v1.0.0 --title "TaskPilot v1.0.0" --notes "Automated release of TaskPilot desktop app" --generate-notes dist/*
+
+  # Run the test suite (uses package.json `test` script, e.g. `npm test` or `yarn test`)
+  test:
+    desc: Run unit tests
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - $NPM test
+
+  build-release:
+    desc: Build the Electron app for both Linux AppImage and Windows .exe using Docker with Wine
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - ./build-windows-exe.sh
+
+  prune-history:
+    desc: Prune git history to a single commit (destructive; force pushes current branch)
+    dir: "{{.TASKFILE_DIR}}"
+    vars:
+      COMMIT_MSG: '{{default "Snapshot after history prune" .COMMIT_MSG}}'
+    cmds:
+      - |
+          set -euo pipefail
+          current_branch="$(git rev-parse --abbrev-ref HEAD)"
+          temp_branch="prune-$(date +%s)"
+
+          echo "Pruning history on branch: ${current_branch}"
+          git checkout --orphan "${temp_branch}"
+          git add -A
+          git commit -m "{{.COMMIT_MSG}}"
+
+          git branch -M "${current_branch}"
+
+          if git ls-remote --exit-code origin "${current_branch}" >/dev/null 2>&1; then
+            git push origin "${current_branch}" --force
+          else
+            echo "No remote branch found on origin; skipping push."
+          fi
+
+          echo "History pruned. Only the latest commit remains locally (and remotely if pushed)."
