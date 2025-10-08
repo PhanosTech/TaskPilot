@@ -8,6 +8,7 @@ This app is ideal for individuals who need to manage a complex workload without 
 
 -   **User Guide**: Learn how to use all the features of TaskPilot by reading the [User's Guide](./USERS_GUIDE.md).
 -   **Installation Guide**: For instructions on how to set up and run the project locally, see the [Compilation and Setup Guide](./COMPILE_GUIDE.md).
+-   **Production Install**: To deploy TaskPilot as a service on a server, run `task install-system`. This builds the app, installs it to `/opt/taskpilot`, preserves any existing data in `/opt/taskpilot/data/taskpilot.db`, and provisions a `taskpilot.service` systemd unit that runs under the `ahiya` user (ensure that user and group already exist).
 
 ## Core Features
 

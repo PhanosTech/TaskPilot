@@ -60,6 +60,44 @@ tasks:
     cmds:
       - $NPM test
 
+  install-system:
+    desc: Build and install TaskPilot into /opt/taskpilot with a systemd service
+    dir: "{{.TASKFILE_DIR}}"
+    cmds:
+      - task: build
+      - |
+          set -euo pipefail
+          DEST="/opt/taskpilot"
+          sudo mkdir -p "$DEST"
+          sudo rm -rf "$DEST/.next"
+          sudo rsync -a \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'test' \
+            --exclude 'scripts/systemd/taskpilot-start.sh' \
+            . "$DEST/"
+          sudo mkdir -p "$DEST/bin" "$DEST/data"
+          sudo cp "{{.TASKFILE_DIR}}/scripts/systemd/taskpilot-start.sh" "$DEST/bin/taskpilot-start.sh"
+          sudo chmod +x "$DEST/bin/taskpilot-start.sh"
+          if [ ! -f "$DEST/data/taskpilot.db" ]; then
+            if [ -f "{{.TASKFILE_DIR}}/taskpilot.prod.db" ]; then
+              sudo cp "{{.TASKFILE_DIR}}/taskpilot.prod.db" "$DEST/data/taskpilot.db"
+            else
+              sudo tee "$DEST/data/taskpilot.db" >/dev/null <<'EOF'
+{"projects":[],"tasks":[],"categories":[]}
+EOF
+            fi
+          fi
+          sudo chown -R ahiya:ahiya "$DEST"
+      - |
+          set -euo pipefail
+          sudo -u ahiya bash -c 'cd /opt/taskpilot && npm install --omit=dev'
+      - |
+          set -euo pipefail
+          sudo cp "{{.TASKFILE_DIR}}/scripts/systemd/taskpilot.service" /etc/systemd/system/taskpilot.service
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now taskpilot.service
+
   prune-history:
     desc: Prune git history to a single commit (destructive; force pushes current branch)
     dir: "{{.TASKFILE_DIR}}"

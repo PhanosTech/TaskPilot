@@ -1,0 +1,19 @@
+[Unit]
+Description=TaskPilot Web Application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ahiya
+Group=ahiya
+WorkingDirectory=/opt/taskpilot
+Environment=APP_DIR=/opt/taskpilot
+Environment=DB_PATH=/opt/taskpilot/data/taskpilot.db
+Environment=PORT=3000
+ExecStart=/opt/taskpilot/bin/taskpilot-start.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
