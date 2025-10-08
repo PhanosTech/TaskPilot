@@ -7,31 +7,37 @@ SERVICE_USER="ahiya"
 SERVICE_GROUP="ahiya"
 DEFAULT_DB_JSON='{"projects":[],"tasks":[],"categories":[]}'
 
+DB_PATH="$DEST/data/taskpilot.db"
+NODE_MODULES_PATH="$DEST/node_modules"
+
 echo "[TaskPilot Install] Starting install script"
+echo "[TaskPilot Install] Source directory: $SRC_DIR"
+echo "[TaskPilot Install] Destination directory: $DEST"
 
-TMP_DB=""
-if sudo test -f "$DEST/data/taskpilot.db"; then
-  TMP_DB="$(mktemp -p /tmp taskpilot.db.XXXXXX)"
-  echo "[TaskPilot Install] Backing up existing database to $TMP_DB"
-  sudo cp "$DEST/data/taskpilot.db" "$TMP_DB"
-else
-  echo "[TaskPilot Install] No existing database found at $DEST/data/taskpilot.db"
-fi
-
-if sudo test -d "$DEST"; then
-  echo "[TaskPilot Install] Removing existing destination directory $DEST"
-  sudo rm -rf "$DEST"
-fi
-
-echo "[TaskPilot Install] Creating destination directory $DEST"
+echo "[TaskPilot Install] Ensuring destination directory exists"
 sudo mkdir -p "$DEST"
 
-echo "[TaskPilot Install] Syncing application files to $DEST"
+if sudo test -d "$DEST/.next"; then
+  echo "[TaskPilot Install] Removing existing build artifacts at $DEST/.next"
+  sudo rm -rf "$DEST/.next"
+fi
+
+echo "[TaskPilot Install] Syncing application files to $DEST (preserving node_modules)"
 sudo rsync -a \
   --exclude '.git' \
   --exclude 'node_modules' \
   --exclude 'test' \
   "$SRC_DIR"/ "$DEST"/
+
+if [ ! -d "$SRC_DIR/node_modules" ]; then
+  echo "[TaskPilot Install] No node_modules directory in source; skipping copy"
+elif sudo test -d "$NODE_MODULES_PATH"; then
+  echo "[TaskPilot Install] Destination already has node_modules; leaving in place"
+else
+  echo "[TaskPilot Install] Copying node_modules from source to destination"
+  sudo mkdir -p "$NODE_MODULES_PATH"
+  sudo rsync -a "$SRC_DIR/node_modules/" "$NODE_MODULES_PATH/"
+fi
 
 echo "[TaskPilot Install] Creating required subdirectories"
 sudo mkdir -p "$DEST/bin" "$DEST/data"
@@ -40,29 +46,26 @@ echo "[TaskPilot Install] Installing startup script"
 sudo cp "$SRC_DIR/scripts/systemd/taskpilot-start.sh" "$DEST/bin/taskpilot-start.sh"
 sudo chmod +x "$DEST/bin/taskpilot-start.sh"
 
-if [ -n "$TMP_DB" ] && [ -f "$TMP_DB" ]; then
-  echo "[TaskPilot Install] Restoring database from $TMP_DB"
-  sudo cp "$TMP_DB" "$DEST/data/taskpilot.db"
-  sudo chown "$SERVICE_USER:$SERVICE_GROUP" "$DEST/data/taskpilot.db"
-  rm -f "$TMP_DB"
-else
-  echo "[TaskPilot Install] No database backup to restore"
-fi
-
-if [ ! -f "$DEST/data/taskpilot.db" ]; then
+if ! sudo test -f "$DB_PATH"; then
   echo "[TaskPilot Install] Provisioning default database"
   if [ -f "$SRC_DIR/taskpilot.prod.db" ]; then
-    sudo cp "$SRC_DIR/taskpilot.prod.db" "$DEST/data/taskpilot.db"
+    sudo cp "$SRC_DIR/taskpilot.prod.db" "$DB_PATH"
   else
-    echo "$DEFAULT_DB_JSON" | sudo tee "$DEST/data/taskpilot.db" >/dev/null
+    echo "$DEFAULT_DB_JSON" | sudo tee "$DB_PATH" >/dev/null
   fi
+else
+  echo "[TaskPilot Install] Reusing existing database at $DB_PATH"
 fi
 
 echo "[TaskPilot Install] Setting ownership to $SERVICE_USER:$SERVICE_GROUP"
 sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" "$DEST"
 
-echo "[TaskPilot Install] Installing npm dependencies (this may take a while)"
-sudo -u "$SERVICE_USER" bash -c "cd '$DEST' && npm install --omit=dev"
+if sudo test -d "$NODE_MODULES_PATH"; then
+  echo "[TaskPilot Install] Reusing existing node_modules at $NODE_MODULES_PATH"
+else
+  echo "[TaskPilot Install] Installing npm dependencies (first install)"
+  sudo -u "$SERVICE_USER" bash -c "cd '$DEST' && npm install --omit=dev"
+fi
 
 echo "[TaskPilot Install] Installing systemd service unit"
 sudo cp "$SRC_DIR/scripts/systemd/taskpilot.service" /etc/systemd/system/taskpilot.service

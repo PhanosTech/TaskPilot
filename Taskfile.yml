@@ -61,7 +61,7 @@ tasks:
       - $NPM test
 
   install:
-    desc: Build and install TaskPilot into /opt/taskpilot with a systemd service
+    desc: Build and install TaskPilot into /opt/taskpilot with a systemd service (preserves existing node_modules)
     dir: "{{.TASKFILE_DIR}}"
     cmds:
       - task: build
