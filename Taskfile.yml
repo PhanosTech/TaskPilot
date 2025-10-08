@@ -60,7 +60,7 @@ tasks:
     cmds:
       - $NPM test
 
-  install-system:
+  install:
     desc: Build and install TaskPilot into /opt/taskpilot with a systemd service
     dir: "{{.TASKFILE_DIR}}"
     cmds:
