@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Columns,
   FileText,
+  ListChecks,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ export function AppSidebar() {
     { href: '/projects', icon: FolderKanban, label: 'Projects' },
     { href: '/board', icon: Columns, label: 'Board' },
     { href: '/reports', icon: FileText, label: 'Reports' },
+    { href: '/todo', icon: ListChecks, label: 'Todo' },
   ];
 
   return (

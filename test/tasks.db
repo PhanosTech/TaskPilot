@@ -1,0 +1,105 @@
+{
+  "projects": [
+    {
+      "id": "proj-1759938501165",
+      "name": "sample project",
+      "description": "testing this",
+      "notes": [
+        {
+          "id": "note-1759938501165",
+          "title": "Main",
+          "parentId": null,
+          "content": ""
+        }
+      ],
+      "status": "In Progress",
+      "priority": 5,
+      "categoryId": "cat-default",
+      "categoryIds": [
+        "cat-default",
+        "cat-1759938512940"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1759939502456",
+      "title": "new tasw",
+      "description": "hohoh",
+      "deadline": "2025-10-12T16:04:51.095Z",
+      "priority": "Low",
+      "subtasks": [
+        {
+          "id": "sub-1759939502456-0",
+          "title": "aaaa",
+          "storyPoints": 2,
+          "isCompleted": false
+        },
+        {
+          "id": "sub-1759942213747",
+          "title": "so frustrating",
+          "isCompleted": false,
+          "storyPoints": 2
+        },
+        {
+          "id": "sub-1759942227271",
+          "title": "what",
+          "isCompleted": false,
+          "storyPoints": 2
+        },
+        {
+          "id": "sub-1759944046517",
+          "title": "test",
+          "isCompleted": false,
+          "storyPoints": 2
+        },
+        {
+          "id": "sub-1759944058903",
+          "title": "oh this is nice",
+          "isCompleted": false,
+          "storyPoints": 2
+        },
+        {
+          "id": "sub-1759944062753",
+          "title": "finally",
+          "isCompleted": false,
+          "storyPoints": 2
+        },
+        {
+          "id": "sub-1759944075259",
+          "title": "oh boy",
+          "isCompleted": false,
+          "storyPoints": 2
+        },
+        {
+          "id": "sub-1759944763441",
+          "title": "nice",
+          "isCompleted": false,
+          "storyPoints": 2
+        }
+      ],
+      "projectId": "proj-1759938501165",
+      "status": "In Progress",
+      "storyPoints": 16,
+      "logs": [
+        {
+          "id": "log-1759940213609",
+          "content": "dang it why does this focus keep breaking?",
+          "createdAt": "2025-10-08T16:16:53.609Z"
+        }
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-1759938507845",
+      "name": "work1",
+      "color": "#808080"
+    },
+    {
+      "id": "cat-1759938512940",
+      "name": "work2",
+      "color": "#808080"
+    }
+  ]
+}

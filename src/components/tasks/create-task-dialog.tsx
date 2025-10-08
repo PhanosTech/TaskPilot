@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef, type KeyboardEvent } from "react";
 import { PlusCircle, Calendar as CalendarIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,6 +104,8 @@ export function CreateTaskDialog({
 
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
+  const [pendingSubtaskFocusIndex, setPendingSubtaskFocusIndex] = useState<number | null>(null);
+  const subtaskTitleRefs = useRef<Array<HTMLInputElement | null>>([]);
   const { toast } = useToast();
 
   const form = useForm<TaskFormValues>({
@@ -132,6 +134,8 @@ export function CreateTaskDialog({
       });
       setNewSubtaskTitle("");
       setNewSubtaskPoints(2);
+      setPendingSubtaskFocusIndex(null);
+      subtaskTitleRefs.current = [];
     }
   }, [open, defaultStatus, defaultProjectId, form]);
 
@@ -140,12 +144,64 @@ export function CreateTaskDialog({
     name: "subtasks",
   });
 
+  useEffect(() => {
+    if (pendingSubtaskFocusIndex === null) return;
+
+    const focusInput = () => {
+      const target = subtaskTitleRefs.current[pendingSubtaskFocusIndex];
+      if (!target) return;
+      target.focus();
+      target.select();
+      target.scrollIntoView({ block: "nearest" });
+    };
+
+    let fallbackTimeout: number | null = null;
+    const rafId = window.requestAnimationFrame(() => {
+      focusInput();
+      fallbackTimeout = window.setTimeout(() => {
+        focusInput();
+        setPendingSubtaskFocusIndex(null);
+      }, 60);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      if (fallbackTimeout !== null) {
+        window.clearTimeout(fallbackTimeout);
+      }
+    };
+  }, [fields, pendingSubtaskFocusIndex]);
+
   const handleAddSubtask = () => {
     if (newSubtaskTitle.trim()) {
+      const nextIndex = fields.length;
       append({ title: newSubtaskTitle.trim(), storyPoints: newSubtaskPoints });
       setNewSubtaskTitle("");
       setNewSubtaskPoints(2);
+      setPendingSubtaskFocusIndex(nextIndex);
     }
+  };
+
+  const handleExistingSubtaskKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    index: number,
+  ) => {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    const sourceInput = event.currentTarget as HTMLInputElement | null;
+    const currentSubtasks = form.getValues("subtasks") ?? [];
+    const storyPointsValue = Number(currentSubtasks[index]?.storyPoints);
+    const nextIndex = fields.length;
+    append({
+      title: "",
+      storyPoints: Number.isFinite(storyPointsValue)
+        ? storyPointsValue
+        : newSubtaskPoints,
+    });
+    sourceInput?.blur();
+    setPendingSubtaskFocusIndex(nextIndex);
   };
 
   const onSubmit = (data: TaskFormValues) => {
@@ -324,31 +380,45 @@ export function CreateTaskDialog({
             <div>
               <FormLabel>Subtasks</FormLabel>
               <div className="space-y-2 mt-2">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="flex items-center gap-2">
-                    <Input
-                      {...form.register(`subtasks.${index}.title`)}
-                      className="flex-1"
-                      placeholder="Subtask title"
-                    />
-                    <Input
-                      {...form.register(`subtasks.${index}.storyPoints`)}
-                      type="number"
-                      min="1"
-                      max="5"
-                      className="w-20"
-                      placeholder="Pts"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => remove(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                {fields.map((field, index) => {
+                  const titleField = form.register(`subtasks.${index}.title`);
+                  const storyPointsField = form.register(
+                    `subtasks.${index}.storyPoints`,
+                  );
+                  return (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <Input
+                        {...titleField}
+                        ref={(element) => {
+                          titleField.ref(element);
+                          subtaskTitleRefs.current[index] = element;
+                        }}
+                        onKeyDown={(event) => handleExistingSubtaskKeyDown(event, index)}
+                        className="flex-1"
+                        placeholder="Subtask title"
+                      />
+                      <Input
+                        {...storyPointsField}
+                        type="number"
+                        min="1"
+                        max="5"
+                        className="w-20"
+                        placeholder="Pts"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          subtaskTitleRefs.current.splice(index, 1);
+                          remove(index);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <Input

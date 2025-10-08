@@ -73,7 +73,7 @@ interface DataContextType {
     taskId: string,
     subtaskTitle: string,
     storyPoints: number,
-  ) => void;
+  ) => string;
   removeSubtask: (taskId: string, subtaskId: string) => void;
   addLog: (taskId: string, logContent: string) => void;
   updateLog: (taskId: string, logId: string, newContent: string) => void;
@@ -102,7 +102,7 @@ export const DataContext = createContext<DataContextType>({
   deleteTask: () => {},
   updateTaskStatus: () => {},
   updateSubtask: () => {},
-  addSubtask: () => {},
+  addSubtask: () => "",
   removeSubtask: () => {},
   addLog: () => {},
   updateLog: () => {},
@@ -459,11 +459,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addSubtask = useCallback(
     (taskId: string, subtaskTitle: string, storyPoints: number) => {
+      const newSubtaskId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `sub-${Date.now()}`;
       setTasks((prev) =>
         prev.map((task) => {
           if (task.id === taskId) {
             const newSubtask: Subtask = {
-              id: `sub-${Date.now()}`,
+              id: newSubtaskId,
               title: subtaskTitle,
               isCompleted: false,
               storyPoints,
@@ -482,6 +486,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return task;
         }),
       );
+      return newSubtaskId;
     },
     [],
   );

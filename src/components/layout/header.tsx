@@ -8,6 +8,8 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +27,7 @@ import {
   Users,
   BarChart3,
   ListChecks,
+  FileText,
   Sun,
   Moon
 } from 'lucide-react';
@@ -106,6 +109,7 @@ export function AppHeader() {
     { href: "/projects", icon: Package2, label: "Projects" },
     { href: "/board", icon: ListChecks, label: "Kanban Board" },
     { href: "/reports", icon: BarChart3, label: "Reports" },
+    { href: "/todo", icon: FileText, label: "Todo" },
   ];
 
   const renderNavLinks = (isMobile = false) => (
@@ -138,23 +142,26 @@ export function AppHeader() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="flex flex-col">
-             <nav className="grid gap-2 text-lg font-medium">
-                <Link
-                  href="/dashboard"
-                  onClick={() => setIsSheetOpen(false)}
-                  className="flex items-center gap-2 text-lg font-semibold mb-4"
-                >
-                  <Users className="h-6 w-6" />
-                  <span>TaskPilot</span>
-                </Link>
-                {renderNavLinks(true)}
-              </nav>
-              <div className="mt-auto space-y-4">
-                <SearchBar onResultClick={() => setIsSheetOpen(false)} />
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                  {APP_SIDEBAR_LABEL}
-                </p>
-              </div>
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+            </SheetHeader>
+            <nav className="grid gap-2 text-lg font-medium">
+              <Link
+                href="/dashboard"
+                onClick={() => setIsSheetOpen(false)}
+                className="flex items-center gap-2 text-lg font-semibold mb-4"
+              >
+                <Users className="h-6 w-6" />
+                <span>TaskPilot</span>
+              </Link>
+              {renderNavLinks(true)}
+            </nav>
+            <div className="mt-auto space-y-4">
+              <SearchBar onResultClick={() => setIsSheetOpen(false)} />
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                {APP_SIDEBAR_LABEL}
+              </p>
+            </div>
           </SheetContent>
         </Sheet>
       </div>

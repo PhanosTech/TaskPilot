@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import type { Task, TaskStatus, TaskPriority, Subtask, Log } from "@/lib/types";
 import {
   Dialog,
@@ -52,8 +52,8 @@ interface TaskDetailDialogProps {
   onDeleteTask: (taskId: string) => void;
   /** Callback for when a subtask's completion status changes. */
   onSubtaskChange: (taskId: string, subtaskId: string, changes: Partial<Subtask>) => void;
-  /** Callback to add a new subtask to the current task. */
-  onAddSubtask: (taskId: string, subtaskTitle: string, storyPoints: number) => void;
+  /** Callback to add a new subtask to the current task. Returns the ID of the created subtask. */
+  onAddSubtask: (taskId: string, subtaskTitle: string, storyPoints: number) => string;
   /** Callback to remove a subtask from the current task. */
   onRemoveSubtask: (taskId: string, subtaskId: string) => void;
   /** Callback to add a new work log to the current task. */
@@ -86,18 +86,20 @@ export function TaskDetailDialog({
   const [description, setDescription] = useState(task.description);
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
-  const [deadline, setDeadline] = useState<Date | undefined>(
-    task.deadline ? new Date(task.deadline) : undefined
-  );
-  
-  const [newLog, setNewLog] = useState("");
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
-  
-  const [editingLogId, setEditingLogId] = useState<string | null>(null);
-  const [editingLogContent, setEditingLogContent] = useState("");
-  const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
-  const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
+const [deadline, setDeadline] = useState<Date | undefined>(
+  task.deadline ? new Date(task.deadline) : undefined
+);
+
+const [newLog, setNewLog] = useState("");
+const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
+
+const [editingLogId, setEditingLogId] = useState<string | null>(null);
+const [editingLogContent, setEditingLogContent] = useState("");
+const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
+const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
+const [pendingSubtaskFocusId, setPendingSubtaskFocusId] = useState<string | null>(null);
+const subtaskInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { toast } = useToast();
   
@@ -105,18 +107,58 @@ export function TaskDetailDialog({
     return task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
   }, [task.subtasks]);
 
+  const lastTaskIdRef = useRef<string>(task.id);
+
   useEffect(() => {
-    if (open) {
-      setTitle(task.title);
-      setDescription(task.description);
-      setStatus(task.status);
-      setPriority(task.priority);
-      setDeadline(task.deadline ? new Date(task.deadline) : undefined);
-      setEditingLogId(null);
-      setDeletingLogId(null);
-      setDeleteAlertOpen(false);
+    if (!open) {
+      return;
+    }
+
+    setTitle(task.title);
+    setDescription(task.description);
+    setStatus(task.status);
+    setPriority(task.priority);
+    setDeadline(task.deadline ? new Date(task.deadline) : undefined);
+    setEditingLogId(null);
+    setDeletingLogId(null);
+    setDeleteAlertOpen(false);
+
+    if (lastTaskIdRef.current !== task.id) {
+      setPendingSubtaskFocusId(null);
+      subtaskInputRefs.current = {};
+      lastTaskIdRef.current = task.id;
     }
   }, [open, task]);
+
+  useEffect(() => {
+    if (!pendingSubtaskFocusId) {
+      return;
+    }
+
+    const focusInput = () => {
+      const input = subtaskInputRefs.current[pendingSubtaskFocusId];
+      if (!input) return;
+      input.focus();
+      input.select();
+      input.scrollIntoView({ block: "nearest" });
+    };
+
+    let fallbackTimeout: number | null = null;
+    const rafId = window.requestAnimationFrame(() => {
+      focusInput();
+      fallbackTimeout = window.setTimeout(() => {
+        focusInput();
+        setPendingSubtaskFocusId(null);
+      }, 60);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      if (fallbackTimeout !== null) {
+        window.clearTimeout(fallbackTimeout);
+      }
+    };
+  }, [pendingSubtaskFocusId, task.subtasks]);
 
   const completedSubtasks = task.subtasks.filter(st => st.isCompleted).length;
   const totalSubtaskStoryPoints = task.subtasks.reduce((sum, st) => sum + st.storyPoints, 0);
@@ -160,7 +202,14 @@ export function TaskDetailDialog({
       let points = newSubtaskPoints;
       if (points < 1) points = 1;
       if (points > 5) points = 5;
-      onAddSubtask(task.id, newSubtaskTitle.trim(), points);
+      const createdSubtaskId = onAddSubtask(
+        task.id,
+        newSubtaskTitle.trim(),
+        points,
+      );
+      if (createdSubtaskId) {
+        setPendingSubtaskFocusId(createdSubtaskId);
+      }
       setNewSubtaskTitle("");
       setNewSubtaskPoints(2);
     }
@@ -175,6 +224,28 @@ export function TaskDetailDialog({
   
   const handleSubtaskTitleChange = (subtaskId: string, title: string) => {
     onSubtaskChange(task.id, subtaskId, { title });
+  };
+
+  const handleSubtaskInputKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    subtask: Subtask,
+  ) => {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    const sourceInput = event.currentTarget;
+    const newSubtaskId = onAddSubtask(
+      task.id,
+      "",
+      Number.isFinite(subtask.storyPoints) ? subtask.storyPoints : newSubtaskPoints,
+    );
+    if (sourceInput) {
+      sourceInput.blur();
+    }
+    if (newSubtaskId) {
+      setPendingSubtaskFocusId(newSubtaskId);
+    }
   };
 
   const handleStartEditLog = (log: Log) => {
@@ -288,8 +359,16 @@ export function TaskDetailDialog({
                                   }
                               />
                               <Input
+                                ref={(element) => {
+                                  if (element) {
+                                    subtaskInputRefs.current[subtask.id] = element;
+                                  } else {
+                                    delete subtaskInputRefs.current[subtask.id];
+                                  }
+                                }}
                                 value={subtask.title}
                                 onChange={(e) => handleSubtaskTitleChange(subtask.id, e.target.value)}
+                                onKeyDown={(event) => handleSubtaskInputKeyDown(event, subtask)}
                                 className={`flex-1 h-8 ${subtask.isCompleted ? 'line-through text-muted-foreground' : ''}`}
                               />
                                <Input

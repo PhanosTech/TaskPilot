@@ -18,7 +18,8 @@ This app is ideal for individuals who need to manage a complex workload without 
 -   **Progress Tracking**: The dashboard provides at-a-glance statistics and charts to visualize task distribution.
 -   **Project Notes**: Each project can have multiple rich-text notes with Markdown support and the ability to embed tasks.
 -   **Reporting**: Filter and export work logs by project and date range.
--   **Personal Todos & Scratchpad**: The dashboard includes a simple to-do list and a persistent scratchpad for managing personal tasks and quick notes not tied to a project.
+-   **Personal Todos & Scratchpad**: Capture quick wins from the dashboard, promote items from a categorized backlog, reorder active work, and keep lightweight notes in the scratchpad.
+-   **Todo Backlog**: A dedicated page to organize personal todos by category, bulk capture ideas, and promote priority items into your active focus list.
 -   **Dark Mode**: A beautiful and consistent dark theme for a better user experience in low-light environments.
 
 ## Tech Stack
