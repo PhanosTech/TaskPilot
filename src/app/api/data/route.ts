@@ -2,8 +2,13 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { projects as initialProjects, tasks as initialTasks, categories as initialCategories } from '@/lib/data';
-import type { Project } from '@/lib/types';
+import {
+    projects as initialProjects,
+    tasks as initialTasks,
+    categories as initialCategories,
+} from '@/lib/data';
+import type { Project, ProjectCategory, Task } from '@/lib/types';
+import { initialTodoState, type TodoState } from '@/lib/todo-storage';
 
 const getDbPath = () => {
     // In production server environment, use DB_PATH env var.
@@ -13,32 +18,80 @@ const getDbPath = () => {
     return path.resolve(process.cwd(), dbPath);
 };
 
+type StoredData = {
+    projects: Project[];
+    tasks: Task[];
+    categories: ProjectCategory[];
+    personalTodos: TodoState;
+    scratchpad: string;
+};
+
+const normalizeProjects = (value: unknown): Project[] => {
+    const projects = Array.isArray(value) ? (value as Project[]) : initialProjects;
+    return projects.map((project) => ({
+        ...project,
+        categoryId: project.categoryId || 'cat-default',
+    }));
+};
+
+const normalizeCategories = (value: unknown): ProjectCategory[] => {
+    const categories = Array.isArray(value) ? (value as ProjectCategory[]) : initialCategories;
+    return categories.map((category) => ({
+        ...category,
+    }));
+};
+
+const normalizeTasks = (value: unknown): Task[] => {
+    const tasks = Array.isArray(value) ? (value as Task[]) : initialTasks;
+    return tasks.map((task) => ({
+        ...task,
+    }));
+};
+
+const normalizeTodoState = (value: unknown): TodoState => {
+    const raw = (value ?? initialTodoState) as Partial<TodoState>;
+    const categories = Array.isArray(raw.categories) ? raw.categories : [];
+    const todos = Array.isArray(raw.todos) ? raw.todos : [];
+    const todoIds = new Set(todos.map((todo) => todo.id));
+    const activeOrder = Array.isArray(raw.activeOrder)
+        ? raw.activeOrder.filter((id): id is string => typeof id === 'string' && todoIds.has(id))
+        : [];
+
+    return {
+        categories: categories.map((category) => ({ ...category })),
+        todos: todos.map((todo) => ({ ...todo })),
+        activeOrder: [...activeOrder],
+    };
+};
+
+const normalizeData = (value: unknown): StoredData => {
+    const raw = (value ?? {}) as Partial<StoredData>;
+    return {
+        projects: normalizeProjects(raw.projects),
+        tasks: normalizeTasks(raw.tasks),
+        categories: normalizeCategories(raw.categories),
+        personalTodos: normalizeTodoState(raw.personalTodos),
+        scratchpad: typeof raw.scratchpad === 'string' ? raw.scratchpad : '',
+    };
+};
+
 export async function GET() {
     const dbPath = getDbPath();
     try {
         const data = await fs.readFile(dbPath, 'utf8');
         const jsonData = JSON.parse(data);
-
-        // Ensure categories exist and migrate projects without a categoryId
-        if (!jsonData.categories) {
-            jsonData.categories = initialCategories;
-        }
-        if (jsonData.projects) {
-            jsonData.projects = jsonData.projects.map((p: Project) => ({
-                ...p,
-                categoryId: p.categoryId || 'cat-default'
-            }));
-        }
-        
-        return NextResponse.json(jsonData);
+        const normalized = normalizeData(jsonData);
+        return NextResponse.json(normalized);
     } catch (error) {
         // If the file doesn't exist, return the initial data.
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            const initialData = { 
-                projects: initialProjects.map(p => ({ ...p, categoryId: p.categoryId || 'cat-default' })), 
-                tasks: initialTasks, 
-                categories: initialCategories 
-            };
+            const initialData = normalizeData({
+                projects: initialProjects,
+                tasks: initialTasks,
+                categories: initialCategories,
+                personalTodos: initialTodoState,
+                scratchpad: '',
+            });
             // Also write it to the file so it's created for the next time.
             await fs.writeFile(dbPath, JSON.stringify(initialData, null, 2));
             return NextResponse.json(initialData);
@@ -51,13 +104,36 @@ export async function POST(request: Request) {
     const dbPath = getDbPath();
     try {
         const body = await request.json();
-        // Ensure all parts of the data model are written
-        const dataToSave = {
-            projects: body.projects || [],
-            tasks: body.tasks || [],
-            categories: body.categories || [],
-        };
-        await fs.writeFile(dbPath, JSON.stringify(dataToSave, null, 2));
+        let existing: StoredData;
+        try {
+            const raw = await fs.readFile(dbPath, 'utf8');
+            existing = normalizeData(JSON.parse(raw));
+        } catch (readError) {
+            if ((readError as NodeJS.ErrnoException).code === 'ENOENT') {
+                existing = normalizeData({
+                    projects: initialProjects,
+                    tasks: initialTasks,
+                    categories: initialCategories,
+                    personalTodos: initialTodoState,
+                    scratchpad: '',
+                });
+            } else {
+                throw readError;
+            }
+        }
+
+        const hasOwn = (key: keyof StoredData) =>
+            Object.prototype.hasOwnProperty.call(body, key);
+
+        const merged = normalizeData({
+            projects: hasOwn('projects') ? body.projects : existing.projects,
+            tasks: hasOwn('tasks') ? body.tasks : existing.tasks,
+            categories: hasOwn('categories') ? body.categories : existing.categories,
+            personalTodos: hasOwn('personalTodos') ? body.personalTodos : existing.personalTodos,
+            scratchpad: hasOwn('scratchpad') ? body.scratchpad : existing.scratchpad,
+        });
+
+        await fs.writeFile(dbPath, JSON.stringify(merged, null, 2));
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to write data' }, { status: 500 });

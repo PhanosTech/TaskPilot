@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -10,39 +10,34 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-
-const LOCAL_STORAGE_KEY = "taskpilot-scratchpad";
+import { useTodoContext } from "@/context/todo-context";
 
 export function Scratchpad() {
-  const [content, setContent] = useState("");
+  const { scratchpadContent, updateScratchpad, isHydrated } = useTodoContext();
 
-  useEffect(() => {
-    const savedContent = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedContent) {
-      setContent(savedContent);
-    }
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
-    localStorage.setItem(LOCAL_STORAGE_KEY, newContent);
-  };
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      updateScratchpad(event.target.value);
+    },
+    [updateScratchpad],
+  );
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Scratchpad</CardTitle>
         <CardDescription>
-          Jot down quick notes here. They are saved locally and will persist between sessions.
+          Jot down quick notes here. Your notes are saved to the TaskPilot
+          workspace so they follow you between browsers.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Textarea
           placeholder="Type your notes here..."
-          value={content}
+          value={scratchpadContent}
           onChange={handleChange}
           className="h-32 resize-y"
+          disabled={!isHydrated}
         />
       </CardContent>
     </Card>

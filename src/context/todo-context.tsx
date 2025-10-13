@@ -6,34 +6,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import {
+  initialTodoState,
+  type TodoCategory,
+  type TodoItem,
+  type TodoState,
+  type TodoStatus,
+} from "@/lib/todo-storage";
 
-type TodoStatus = "backlog" | "active";
-
-export type TodoCategory = {
-  id: string;
-  name: string;
-  color: string;
-};
-
-export type TodoItem = {
-  id: string;
-  text: string;
-  categoryId: string;
-  status: TodoStatus;
-  isDone: boolean;
-  createdAt: number;
-};
-
-type TodoState = {
-  categories: TodoCategory[];
-  todos: TodoItem[];
-  activeOrder: string[];
-};
-
-const STORAGE_KEY = "taskpilot-personal-todos-v2";
 export const CATEGORY_COLOR_PALETTE = [
   "#2563EB",
   "#DB2777",
@@ -47,10 +31,18 @@ export const CATEGORY_COLOR_PALETTE = [
   "#6366F1",
 ];
 
-const initialState: TodoState = {
-  categories: [],
-  todos: [],
-  activeOrder: [],
+const SAVE_DEBOUNCE_MS = 500;
+
+const debounce = <F extends (...args: any[]) => void>(func: F, delay: number) => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<F>) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      func(...args);
+    }, delay);
+  };
 };
 
 type TodoContextValue = {
@@ -71,29 +63,12 @@ type TodoContextValue = {
   deleteTodo: (id: string) => void;
   reorderActiveTodos: (sourceIndex: number, destinationIndex: number) => void;
   clearCompletedTodos: () => void;
+  scratchpadContent: string;
+  updateScratchpad: (content: string) => void;
+  isHydrated: boolean;
 };
 
 const TodoContext = createContext<TodoContextValue | undefined>(undefined);
-
-function loadState(): TodoState {
-  if (typeof window === "undefined") {
-    return initialState;
-  }
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return initialState;
-    }
-    const parsed = JSON.parse(raw) as TodoState;
-    if (!parsed.categories || !parsed.todos || !parsed.activeOrder) {
-      return initialState;
-    }
-    return ensureCategoryColors(parsed);
-  } catch (error) {
-    console.error("Failed to parse todo state from localStorage", error);
-    return initialState;
-  }
-}
 
 function ensureCategoryColors(state: TodoState): TodoState {
   const usedColors = new Set(
@@ -148,31 +123,78 @@ function sanitizeHexColor(color?: string): string | undefined {
   return undefined;
 }
 
-function persistState(state: TodoState) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.error("Failed to save todo state to localStorage", error);
-  }
-}
-
 export function TodoProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<TodoState>(initialState);
+  const [state, setState] = useState<TodoState>(initialTodoState);
+  const [scratchpadContent, setScratchpadContent] = useState("");
   const [isHydrated, setIsHydrated] = useState(false);
 
+  const saveToServer = useCallback(async (nextState: TodoState, nextScratchpad: string) => {
+    try {
+      const response = await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalTodos: nextState,
+          scratchpad: nextScratchpad,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to persist personal workspace: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Failed to save personal workspace state to server", error);
+    }
+  }, []);
+  const saveRef = useRef(
+    debounce((nextState: TodoState, nextScratchpad: string) => {
+      void saveToServer(nextState, nextScratchpad);
+    }, SAVE_DEBOUNCE_MS),
+  );
+
   useEffect(() => {
-    setState(loadState());
-    setIsHydrated(true);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/data");
+        if (!response.ok) {
+          throw new Error(`Failed to load personal workspace: ${response.status}`);
+        }
+        const payload = await response.json();
+        if (cancelled) {
+          return;
+        }
+        const serverState = payload?.personalTodos ?? initialTodoState;
+        setState(ensureCategoryColors(serverState));
+        setScratchpadContent(
+          typeof payload?.scratchpad === "string" ? payload.scratchpad : "",
+        );
+      } catch (error) {
+        console.error("Failed to load personal workspace state from server", error);
+        if (!cancelled) {
+          setState(initialTodoState);
+          setScratchpadContent("");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsHydrated(true);
+        }
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (isHydrated) {
-      persistState(state);
+      saveRef.current(state, scratchpadContent);
     }
-  }, [state, isHydrated]);
+  }, [state, scratchpadContent, isHydrated]);
+
+  const updateScratchpad = useCallback((content: string) => {
+    setScratchpadContent(content);
+  }, []);
 
   const addCategory = useCallback((name: string, color?: string) => {
     const trimmed = name.trim();
@@ -505,6 +527,9 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       deleteTodo,
       reorderActiveTodos,
       clearCompletedTodos,
+      scratchpadContent,
+      updateScratchpad,
+      isHydrated,
     }),
     [
       state.categories,
@@ -524,6 +549,9 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       deleteTodo,
       reorderActiveTodos,
       clearCompletedTodos,
+      scratchpadContent,
+      updateScratchpad,
+      isHydrated,
     ],
   );
 

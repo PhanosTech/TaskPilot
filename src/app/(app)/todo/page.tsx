@@ -36,6 +36,7 @@ export default function TodoBacklogPage() {
     toggleTodoDone,
     moveTodoToActive,
     deleteTodo,
+    isHydrated,
   } = useTodoContext();
 
   const [categoryDraft, setCategoryDraft] = useState("");
@@ -73,7 +74,7 @@ export default function TodoBacklogPage() {
   }, [categories]);
 
   const handleAddCategory = () => {
-    if (!categoryDraft.trim()) return;
+    if (!isHydrated || !categoryDraft.trim()) return;
     const newId = addCategory(categoryDraft, categoryColorDraft);
     if (newId) {
       setCategoryDraft("");
@@ -82,7 +83,7 @@ export default function TodoBacklogPage() {
   };
 
   const handleCategoryUpdate = () => {
-    if (!editingCategory) return;
+    if (!isHydrated || !editingCategory) return;
     updateCategory(editingCategory.id, {
       name: editingCategory.name,
       color: editingCategory.color,
@@ -91,6 +92,7 @@ export default function TodoBacklogPage() {
   };
 
   const handleDeleteCategory = (id: string) => {
+    if (!isHydrated) return;
     const confirmed =
       typeof window === "undefined"
         ? true
@@ -110,6 +112,7 @@ export default function TodoBacklogPage() {
   };
 
   const handleAddTodo = (categoryId: string) => {
+    if (!isHydrated) return;
     const draft = todoDrafts[categoryId]?.trim();
     if (!draft) return;
     addBacklogTodo(categoryId, draft);
@@ -117,7 +120,7 @@ export default function TodoBacklogPage() {
   };
 
   const handleSaveTodo = () => {
-    if (!editingTodo) return;
+    if (!isHydrated || !editingTodo) return;
     if (!editingTodo.text.trim()) {
       setEditingTodo(null);
       return;
@@ -157,6 +160,7 @@ export default function TodoBacklogPage() {
                 placeholder="Category name..."
                 value={categoryDraft}
                 onChange={(event) => setCategoryDraft(event.target.value)}
+                disabled={!isHydrated}
               />
               <input
                 type="color"
@@ -164,8 +168,9 @@ export default function TodoBacklogPage() {
                 onChange={(event) => setCategoryColorDraft(event.target.value)}
                 aria-label="Category color"
                 className="h-10 w-12 cursor-pointer rounded border border-input bg-background p-1"
+                disabled={!isHydrated}
               />
-              <Button type="submit">
+              <Button type="submit" disabled={!isHydrated}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add
               </Button>
@@ -306,8 +311,9 @@ export default function TodoBacklogPage() {
                             [category.id]: event.target.value,
                           }))
                         }
+                        disabled={!isHydrated}
                       />
-                      <Button type="submit" size="icon">
+                      <Button type="submit" size="icon" disabled={!isHydrated}>
                         <Plus className="h-4 w-4" />
                         <span className="sr-only">Add todo</span>
                       </Button>

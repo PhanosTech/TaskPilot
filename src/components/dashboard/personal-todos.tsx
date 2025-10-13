@@ -48,6 +48,7 @@ export function PersonalTodos() {
     deleteTodo,
     reorderActiveTodos,
     clearCompletedTodos,
+    isHydrated,
   } = useTodoContext();
   const [newTodo, setNewTodo] = useState("");
   const [editingTodo, setEditingTodo] = useState<{
@@ -70,7 +71,7 @@ export function PersonalTodos() {
   );
 
   const handleAddTodo = () => {
-    if (!newTodo.trim()) return;
+    if (!isHydrated || !newTodo.trim()) return;
     addActiveTodo(newTodo);
     setNewTodo("");
   };
@@ -114,6 +115,7 @@ export function PersonalTodos() {
             placeholder="Add a new todo..."
             value={newTodo}
             onChange={(event) => setNewTodo(event.target.value)}
+            disabled={!isHydrated}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
@@ -121,7 +123,7 @@ export function PersonalTodos() {
               }
             }}
           />
-          <Button onClick={handleAddTodo} size="icon">
+          <Button onClick={handleAddTodo} size="icon" disabled={!isHydrated}>
             <Plus className="h-4 w-4" />
             <span className="sr-only">Add todo</span>
           </Button>
