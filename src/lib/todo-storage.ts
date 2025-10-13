@@ -12,6 +12,12 @@ export type TodoCategory = {
   color: string;
 };
 
+export type TodoLog = {
+  id: string;
+  content: string;
+  createdAt: number;
+};
+
 export type TodoItem = {
   id: string;
   text: string;
@@ -19,6 +25,8 @@ export type TodoItem = {
   status: TodoStatus;
   isDone: boolean;
   createdAt: number;
+  notes: string;
+  logs: TodoLog[];
 };
 
 export type TodoState = {

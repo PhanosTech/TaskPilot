@@ -51,24 +51,57 @@ type TodoContextValue = {
   activeTodos: TodoItem[];
   getCategoryTodos: (categoryId: string) => TodoItem[];
   getCategoryById: (categoryId: string) => TodoCategory | undefined;
+  getTodoById: (id: string) => TodoItem | undefined;
   addCategory: (name: string, color?: string) => string;
   updateCategory: (id: string, data: Partial<Pick<TodoCategory, "name" | "color">>) => void;
   deleteCategory: (id: string) => void;
   addBacklogTodo: (categoryId: string, text: string) => void;
   addActiveTodo: (text: string, categoryId?: string) => void;
   updateTodoText: (id: string, text: string) => void;
+  updateTodoNotes: (id: string, notes: string) => void;
   toggleTodoDone: (id: string) => void;
   moveTodoToActive: (id: string) => void;
   moveTodoToBacklog: (id: string, categoryId?: string) => void;
   deleteTodo: (id: string) => void;
   reorderActiveTodos: (sourceIndex: number, destinationIndex: number) => void;
   clearCompletedTodos: () => void;
+  addTodoLog: (id: string, content: string) => void;
+  deleteTodoLog: (id: string, logId: string) => void;
   scratchpadContent: string;
   updateScratchpad: (content: string) => void;
   isHydrated: boolean;
 };
 
 const TodoContext = createContext<TodoContextValue | undefined>(undefined);
+
+function normalizeTodoLogs(logs: TodoItem["logs"] | unknown): TodoItem["logs"] {
+  if (!Array.isArray(logs)) {
+    return [];
+  }
+  return logs
+    .map((log) => {
+      if (!log || typeof log !== "object") {
+        return null;
+      }
+      const id =
+        typeof (log as { id?: unknown }).id === "string"
+          ? (log as { id: string }).id
+          : `todo-log-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const content =
+        typeof (log as { content?: unknown }).content === "string"
+          ? (log as { content: string }).content
+          : "";
+      const createdAt =
+        typeof (log as { createdAt?: unknown }).createdAt === "number"
+          ? (log as { createdAt: number }).createdAt
+          : Date.now();
+      if (!content) {
+        return null;
+      }
+      return { id, content, createdAt };
+    })
+    .filter((log): log is TodoItem["logs"][number] => !!log);
+}
 
 function ensureCategoryColors(state: TodoState): TodoState {
   const usedColors = new Set(
@@ -100,6 +133,11 @@ function ensureCategoryColors(state: TodoState): TodoState {
   return {
     ...state,
     categories: categoriesWithColor,
+    todos: state.todos.map((todo) => ({
+      ...todo,
+      notes: typeof todo.notes === "string" ? todo.notes : "",
+      logs: normalizeTodoLogs(todo.logs),
+    })),
   };
 }
 
@@ -299,6 +337,8 @@ export function TodoProvider({ children }: { children: ReactNode }) {
         status: "backlog",
         isDone: false,
         createdAt: timestamp,
+        notes: "",
+        logs: [],
       };
       return {
         ...prev,
@@ -356,6 +396,8 @@ export function TodoProvider({ children }: { children: ReactNode }) {
           status: "active",
           isDone: false,
           createdAt: timestamp,
+          notes: "",
+          logs: [],
         };
         return {
           categories,
@@ -374,6 +416,15 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       ...prev,
       todos: prev.todos.map((todo) =>
         todo.id === id ? { ...todo, text: trimmed } : todo,
+      ),
+    }));
+  }, []);
+
+  const updateTodoNotes = useCallback((id: string, notes: string) => {
+    setState((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) =>
+        todo.id === id ? { ...todo, notes } : todo,
       ),
     }));
   }, []);
@@ -439,6 +490,52 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       ...prev,
       todos: prev.todos.filter((todo) => todo.id !== id),
       activeOrder: prev.activeOrder.filter((todoId) => todoId !== id),
+    }));
+  }, []);
+
+  const addTodoLog = useCallback((id: string, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return;
+    }
+    setState((prev) => {
+      const timestamp = Date.now();
+      const logId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `todo-log-${timestamp}`;
+      return {
+        ...prev,
+        todos: prev.todos.map((todo) =>
+          todo.id === id
+            ? {
+                ...todo,
+                logs: [
+                  {
+                    id: logId,
+                    content: trimmed,
+                    createdAt: timestamp,
+                  },
+                  ...todo.logs,
+                ],
+              }
+            : todo,
+        ),
+      };
+    });
+  }, []);
+
+  const deleteTodoLog = useCallback((id: string, logId: string) => {
+    setState((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) =>
+        todo.id === id
+          ? {
+              ...todo,
+              logs: todo.logs.filter((log) => log.id !== logId),
+            }
+          : todo,
+      ),
     }));
   }, []);
 
@@ -508,6 +605,11 @@ export function TodoProvider({ children }: { children: ReactNode }) {
     [state.categories],
   );
 
+  const getTodoById = useCallback(
+    (id: string) => state.todos.find((todo) => todo.id === id),
+    [state.todos],
+  );
+
   const value = useMemo<TodoContextValue>(
     () => ({
       categories: state.categories,
@@ -515,18 +617,22 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       activeTodos,
       getCategoryTodos,
       getCategoryById,
+      getTodoById,
       addCategory,
       updateCategory,
       deleteCategory,
       addBacklogTodo,
       addActiveTodo,
       updateTodoText,
+      updateTodoNotes,
       toggleTodoDone,
       moveTodoToActive,
       moveTodoToBacklog,
       deleteTodo,
       reorderActiveTodos,
       clearCompletedTodos,
+      addTodoLog,
+      deleteTodoLog,
       scratchpadContent,
       updateScratchpad,
       isHydrated,
@@ -537,18 +643,22 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       activeTodos,
       getCategoryTodos,
       getCategoryById,
+      getTodoById,
       addCategory,
       updateCategory,
       deleteCategory,
       addBacklogTodo,
       addActiveTodo,
       updateTodoText,
+      updateTodoNotes,
       toggleTodoDone,
       moveTodoToActive,
       moveTodoToBacklog,
       deleteTodo,
       reorderActiveTodos,
       clearCompletedTodos,
+      addTodoLog,
+      deleteTodoLog,
       scratchpadContent,
       updateScratchpad,
       isHydrated,

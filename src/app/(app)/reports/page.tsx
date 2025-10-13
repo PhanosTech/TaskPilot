@@ -27,6 +27,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import type { DateRange } from "react-day-picker";
 import { subDays, format as formatDate } from "date-fns";
 import { DataContext } from "@/context/data-context";
+import { useTodoContext } from "@/context/todo-context";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import {
@@ -47,7 +48,25 @@ import { Textarea } from "@/components/ui/textarea";
  * - Added comments and simple UI improvements for clarity on desktop.
  */
 
-type GroupedLogs = {
+type InProgressWork = {
+  projectName: string;
+  taskTitle: string;
+  taskDescription: string;
+  status: string;
+};
+
+type CombinedLog = {
+  id: string;
+  kind: "project" | "todo";
+  projectId?: string;
+  groupLabel: string;
+  itemName: string;
+  content: string;
+  createdAt: string;
+  categoryName?: string;
+};
+
+type GroupedProjectLogs = {
   [projectName: string]: {
     [taskTitle: string]: {
       content: string;
@@ -56,15 +75,18 @@ type GroupedLogs = {
   };
 };
 
-type InProgressWork = {
-  projectName: string;
-  taskTitle: string;
-  taskDescription: string;
-  status: string;
+type GroupedTodoLogs = {
+  [categoryName: string]: {
+    [todoLabel: string]: {
+      content: string;
+      createdAt: string;
+    }[];
+  };
 };
 
 export default function ReportsPage() {
   const { projects, tasks } = useContext(DataContext);
+  const { categories: todoCategories, activeTodos, backlogTodos } = useTodoContext();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
@@ -88,65 +110,122 @@ export default function ReportsPage() {
     null,
   );
 
-  // flatten logs and attach metadata
-  const flattenedLogs = useMemo(
+  const projectNameMap = useMemo(
+    () => new Map(projects.map((project) => [project.id, project.name])),
+    [projects],
+  );
+
+  const todoCategoryMap = useMemo(
+    () => new Map(todoCategories.map((category) => [category.id, category.name])),
+    [todoCategories],
+  );
+
+  const personalTodos = useMemo(() => {
+    const seen = new Set<string>();
+    const combined: typeof activeTodos = [];
+    for (const todo of [...activeTodos, ...backlogTodos]) {
+      if (seen.has(todo.id)) continue;
+      seen.add(todo.id);
+      combined.push(todo);
+    }
+    return combined;
+  }, [activeTodos, backlogTodos]);
+
+  const projectLogs = useMemo<CombinedLog[]>(
     () =>
       tasks.flatMap((task) =>
-        task.logs.map((log) => ({
-          ...log,
-          taskTitle: task.title,
-          projectId: task.projectId,
-          projectName:
-            projects.find((p) => p.id === task.projectId)?.name ||
-            "Unknown Project",
-        })),
+        task.logs.map((log) => {
+          const projectName =
+            projectNameMap.get(task.projectId) || "Unknown Project";
+          return {
+            id: log.id,
+            kind: "project" as const,
+            projectId: task.projectId,
+            groupLabel: projectName,
+            itemName: task.title,
+            content: log.content,
+            createdAt: new Date(log.createdAt).toISOString(),
+            categoryName: projectName,
+          };
+        }),
       ),
-    [tasks, projects],
+    [tasks, projectNameMap],
+  );
+
+  const todoLogs = useMemo<CombinedLog[]>(
+    () =>
+      personalTodos.flatMap((todo) => {
+        const categoryName =
+          todoCategoryMap.get(todo.categoryId) || "Uncategorized";
+        return todo.logs.map((log) => ({
+          id: `todo-${todo.id}-${log.id}`,
+          kind: "todo" as const,
+          projectId: "personal-todos",
+          groupLabel: categoryName,
+          itemName: todo.text,
+          content: log.content,
+          createdAt: new Date(log.createdAt).toISOString(),
+          categoryName,
+        }));
+      }),
+    [personalTodos, todoCategoryMap],
+  );
+
+  const combinedLogs = useMemo(
+    () => [...projectLogs, ...todoLogs],
+    [projectLogs, todoLogs],
   );
 
   const filteredLogs = useMemo(() => {
-    const list = flattenedLogs.filter((log) => {
+    const list = combinedLogs.filter((log) => {
       const logDate = new Date(log.createdAt);
-      const isProjectMatch =
-        selectedProjectId === "all" || log.projectId === selectedProjectId;
+      const matchesSelection =
+        selectedProjectId === "all"
+          ? true
+          : selectedProjectId === "personal-todos"
+            ? log.kind === "todo"
+            : log.kind === "project" && log.projectId === selectedProjectId;
 
-      if (!dateRange?.from || !dateRange?.to) {
-        return isProjectMatch;
+      if (!matchesSelection) {
+        return false;
       }
 
-      // Set time to end of day for 'to' date to include all logs on that day
+      if (!dateRange?.from || !dateRange?.to) {
+        return true;
+      }
+
       const toDate = new Date(dateRange.to);
       toDate.setHours(23, 59, 59, 999);
 
-      const isDateMatch = logDate >= dateRange.from && logDate <= toDate;
-
-      return isProjectMatch && isDateMatch;
+      return logDate >= dateRange.from && logDate <= toDate;
     });
 
-    // sort by date descending by default
-    list.sort((a, b) => {
-      const da = new Date(a.createdAt).getTime();
-      const db = new Date(b.createdAt).getTime();
-      return sortDir === "desc" ? db - da : da - db;
-    });
+    const compareByDate = (a: CombinedLog, b: CombinedLog) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 
-    // if requested, stable sort by project or task as secondary key
+    let comparator: (a: CombinedLog, b: CombinedLog) => number;
+
     if (sortField === "project") {
-      list.sort((a, b) => {
-        const cmp = a.projectName.localeCompare(b.projectName);
-        if (cmp !== 0) return sortDir === "desc" ? -cmp : cmp;
-        return a.taskTitle.localeCompare(b.taskTitle);
-      });
+      comparator = (a, b) => {
+        const cmp = a.groupLabel.localeCompare(b.groupLabel);
+        if (cmp !== 0) return cmp;
+        return compareByDate(a, b);
+      };
     } else if (sortField === "task") {
-      list.sort((a, b) => {
-        const cmp = a.taskTitle.localeCompare(b.taskTitle);
-        if (cmp !== 0) return sortDir === "desc" ? -cmp : cmp;
-        return a.projectName.localeCompare(b.projectName);
-      });
+      comparator = (a, b) => {
+        const cmp = a.itemName.localeCompare(b.itemName);
+        if (cmp !== 0) return cmp;
+        return compareByDate(a, b);
+      };
+    } else {
+      comparator = compareByDate;
     }
 
-    return list;
-  }, [flattenedLogs, selectedProjectId, dateRange, sortField, sortDir]);
+    return list.sort((a, b) => {
+      const result = comparator(a, b);
+      return sortDir === "desc" ? -result : result;
+    });
+  }, [combinedLogs, selectedProjectId, dateRange, sortField, sortDir]);
 
   const inProgressWork = useMemo(() => {
     // capture both 'In Progress' and 'To Do' as remaining work snapshot candidates
@@ -181,38 +260,82 @@ export default function ReportsPage() {
       : "N/A";
     const projectLabel =
       selectedProjectId === "all"
-        ? "All Projects"
-        : projects.find((p) => p.id === selectedProjectId)?.name ||
-          "Unknown Project";
+        ? "All Projects & Todos"
+        : selectedProjectId === "personal-todos"
+          ? "Personal Todos"
+          : projectNameMap.get(selectedProjectId) || "Unknown Project";
 
-    let output = `Work Log Report\nDate Range: ${headerFrom} → ${headerTo}\nProject: ${projectLabel}\nGenerated: ${new Date().toLocaleString()}\n\n`;
+    let output = `Work Log Report\nDate Range: ${headerFrom} → ${headerTo}\nSelection: ${projectLabel}\nGenerated: ${new Date().toLocaleString()}\n\n`;
 
-    // Group logs by project -> task
-    const grouped: GroupedLogs = filteredLogs.reduce((acc, log) => {
-      const { projectName, taskTitle } = log;
-      if (!acc[projectName]) acc[projectName] = {};
-      if (!acc[projectName][taskTitle]) acc[projectName][taskTitle] = [];
-      acc[projectName][taskTitle].push({
-        content: log.content,
-        createdAt: log.createdAt,
-      });
-      return acc;
-    }, {} as GroupedLogs);
+    const projectLogsForExport = filteredLogs.filter(
+      (log) => log.kind === "project",
+    );
+    const todoLogsForExport = filteredLogs.filter((log) => log.kind === "todo");
 
-    // Add sortable output: provide a table-like, but plain text structure
-    output += "=== Work Logs ===\n";
-    for (const projectName of Object.keys(grouped)) {
-      output += `${projectName}\n`;
-      const tasksForProject = grouped[projectName];
-      for (const taskTitle of Object.keys(tasksForProject)) {
-        output += `  ${taskTitle}\n`;
-        tasksForProject[taskTitle].forEach((log) => {
-          const date = new Date(log.createdAt).toLocaleString();
-          // Use bullet points and indentation for readability in email clients like Outlook
-          output += `    - ${log.content} (${date})\n`;
-        });
+    if (projectLogsForExport.length > 0) {
+      const groupedProjects = projectLogsForExport.reduce(
+        (acc, log) => {
+          if (!acc[log.groupLabel]) acc[log.groupLabel] = {};
+          if (!acc[log.groupLabel][log.itemName]) {
+            acc[log.groupLabel][log.itemName] = [];
+          }
+          acc[log.groupLabel][log.itemName].push({
+            content: log.content,
+            createdAt: log.createdAt,
+          });
+          return acc;
+        },
+        {} as GroupedProjectLogs,
+      );
+
+      output += "=== Project Work Logs ===\n";
+      for (const projectName of Object.keys(groupedProjects).sort()) {
+        output += `${projectName}\n`;
+        const tasksForProject = groupedProjects[projectName];
+        for (const taskTitle of Object.keys(tasksForProject).sort()) {
+          output += `  ${taskTitle}\n`;
+          tasksForProject[taskTitle].forEach((log) => {
+            const date = new Date(log.createdAt).toLocaleString();
+            output += `    - ${log.content} (${date})\n`;
+          });
+        }
+        output += "\n";
       }
-      output += "\n";
+    }
+
+    if (todoLogsForExport.length > 0) {
+      const groupedTodos = todoLogsForExport.reduce(
+        (acc, log) => {
+          if (!acc[log.groupLabel]) acc[log.groupLabel] = {};
+          if (!acc[log.groupLabel][log.itemName]) {
+            acc[log.groupLabel][log.itemName] = [];
+          }
+          acc[log.groupLabel][log.itemName].push({
+            content: log.content,
+            createdAt: log.createdAt,
+          });
+          return acc;
+        },
+        {} as GroupedTodoLogs,
+      );
+
+      output += "=== Personal Todo Logs ===\n";
+      for (const categoryName of Object.keys(groupedTodos).sort()) {
+        output += `${categoryName}\n`;
+        const todosForCategory = groupedTodos[categoryName];
+        for (const todoLabel of Object.keys(todosForCategory).sort()) {
+          output += `  ${todoLabel}\n`;
+          todosForCategory[todoLabel].forEach((log) => {
+            const date = new Date(log.createdAt).toLocaleString();
+            output += `    - ${log.content} (${date})\n`;
+          });
+        }
+        output += "\n";
+      }
+    }
+
+    if (projectLogsForExport.length === 0 && todoLogsForExport.length === 0) {
+      output += "No work logs found for the current filters.\n\n";
     }
 
     if (includeSnapshot) {
@@ -367,6 +490,7 @@ export default function ReportsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="personal-todos">Personal Todos</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
@@ -397,8 +521,9 @@ export default function ReportsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Project</TableHead>
-                <TableHead>Task</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Category / Project</TableHead>
+                <TableHead>Item</TableHead>
                 <TableHead>Log</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
@@ -407,8 +532,11 @@ export default function ReportsPage() {
               {filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => (
                   <TableRow key={log.id}>
-                    <TableCell>{log.projectName}</TableCell>
-                    <TableCell>{log.taskTitle}</TableCell>
+                    <TableCell>
+                      {log.kind === "project" ? "Project Task" : "Personal Todo"}
+                    </TableCell>
+                    <TableCell>{log.groupLabel}</TableCell>
+                    <TableCell>{log.itemName}</TableCell>
                     <TableCell className="max-w-xs truncate">
                       {log.content}
                     </TableCell>
@@ -419,7 +547,7 @@ export default function ReportsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={5} className="text-center">
                     No logs found for the selected criteria.
                   </TableCell>
                 </TableRow>

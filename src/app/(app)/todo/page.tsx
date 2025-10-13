@@ -19,8 +19,11 @@ import {
   Check,
   X,
   Play,
+  NotebookPen,
 } from "lucide-react";
 import { useTodoContext, CATEGORY_COLOR_PALETTE } from "@/context/todo-context";
+import { PersonalTodos } from "@/components/dashboard/personal-todos";
+import { TodoDetailsDialog } from "@/components/todo/todo-details-dialog";
 
 type DraftMap = Record<string, string>;
 
@@ -53,6 +56,8 @@ export default function TodoBacklogPage() {
     id: string;
     text: string;
   } | null>(null);
+  const [isBacklogOpen, setIsBacklogOpen] = useState(true);
+  const [detailsTodoId, setDetailsTodoId] = useState<string | null>(null);
 
   const backlogCount = useMemo(
     () =>
@@ -131,15 +136,27 @@ export default function TodoBacklogPage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Todo Backlog</h1>
-        <p className="text-sm text-muted-foreground">
-          Organize all quick tasks by category, then promote the ones you want
-          to focus on. Backlog items: {backlogCount}
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Todo Backlog</h1>
+          <p className="text-sm text-muted-foreground">
+            Organize all quick tasks by category, then promote the ones you want
+            to focus on. Backlog items: {backlogCount}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsBacklogOpen((prev) => !prev)}
+        >
+          {isBacklogOpen ? "Hide backlog" : "Show backlog"}
+        </Button>
       </header>
 
-      <section className="flex flex-col gap-4">
+      <PersonalTodos />
+
+      {isBacklogOpen && (
+        <section className="flex flex-col gap-4">
         <Card className="max-w-xl">
           <CardHeader>
             <CardTitle>Add Category</CardTitle>
@@ -397,6 +414,17 @@ export default function TodoBacklogPage() {
                                     size="icon"
                                     variant="ghost"
                                     className="h-6 w-6"
+                                    onClick={() => setDetailsTodoId(todo.id)}
+                                  >
+                                    <NotebookPen className="h-4 w-4" />
+                                    <span className="sr-only">
+                                      View notes and logs
+                                    </span>
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
                                     onClick={() => {
                                       moveTodoToActive(todo.id);
                                       if (editingTodo?.id === todo.id) {
@@ -453,6 +481,16 @@ export default function TodoBacklogPage() {
           </div>
         )}
       </section>
+      )}
+      <TodoDetailsDialog
+        todoId={detailsTodoId}
+        open={detailsTodoId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailsTodoId(null);
+          }
+        }}
+      />
     </div>
   );
 }

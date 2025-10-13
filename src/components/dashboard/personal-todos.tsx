@@ -24,8 +24,10 @@ import {
   ArrowUp,
   ArrowDown,
   Undo2,
+  NotebookPen,
 } from "lucide-react";
 import { useTodoContext } from "@/context/todo-context";
+import { TodoDetailsDialog } from "@/components/todo/todo-details-dialog";
 
 function getReadableTextColor(hex: string): string {
   const normalized = /^#[0-9A-Fa-f]{6}$/.test(hex) ? hex : "#1F2937";
@@ -55,6 +57,7 @@ export function PersonalTodos() {
     id: string;
     text: string;
   } | null>(null);
+  const [detailsTodoId, setDetailsTodoId] = useState<string | null>(null);
 
   const categoryLookup = useMemo(
     () =>
@@ -102,12 +105,13 @@ export function PersonalTodos() {
   );
 
   return (
-    <Card className="col-span-1 lg:col-span-3 flex flex-col">
-      <CardHeader>
-        <CardTitle>Personal Todos</CardTitle>
-        <CardDescription>
-          Focus list for lightweight tasks. Manage backlog on the todo page.
-        </CardDescription>
+    <>
+      <Card className="col-span-1 lg:col-span-3 flex flex-col">
+        <CardHeader>
+          <CardTitle>Personal Todos</CardTitle>
+          <CardDescription>
+            Focus list for lightweight tasks. Manage backlog on the todo page.
+          </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow space-y-4">
         <div className="flex gap-2">
@@ -228,6 +232,15 @@ export function PersonalTodos() {
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
+                        onClick={() => setDetailsTodoId(todo.id)}
+                      >
+                        <NotebookPen className="h-4 w-4" />
+                        <span className="sr-only">View notes and logs</span>
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
                         disabled={index === 0}
                         onClick={() => handleReorder(index, "up")}
                       >
@@ -298,7 +311,17 @@ export function PersonalTodos() {
             <Link href="/todo">Open todo backlog</Link>
           </Button>
         </CardFooter>
-      )}
-    </Card>
+        )}
+      </Card>
+      <TodoDetailsDialog
+        todoId={detailsTodoId}
+        open={detailsTodoId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailsTodoId(null);
+          }
+        }}
+      />
+    </>
   );
 }
