@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useTodoContext } from "@/context/todo-context";
 import { Trash2 } from "lucide-react";
@@ -111,8 +110,8 @@ export function TodoDetailsDialog({
                 </Button>
               </div>
 
-              <ScrollArea className="max-h-64 rounded border border-border">
-                <div className="space-y-3 p-3">
+              <div className="max-h-64 overflow-y-auto rounded border border-border">
+                <div className="space-y-3 p-3 pr-4">
                   {todo.logs.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
                       No work logs yet. Add your first update above.
@@ -143,7 +142,7 @@ export function TodoDetailsDialog({
                     ))
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </section>
           </div>
         ) : (

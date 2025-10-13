@@ -84,6 +84,24 @@ type GroupedTodoLogs = {
   };
 };
 
+type ActiveTodoRow = {
+  id: string;
+  text: string;
+  categoryName: string;
+  isDone: boolean;
+  createdAt: number;
+};
+
+type BacklogTodoGroup = {
+  categoryName: string;
+  todos: {
+    id: string;
+    text: string;
+    isDone: boolean;
+    createdAt: number;
+  }[];
+};
+
 export default function ReportsPage() {
   const { projects, tasks } = useContext(DataContext);
   const { categories: todoCategories, activeTodos, backlogTodos } = useTodoContext();
@@ -106,7 +124,12 @@ export default function ReportsPage() {
     useState(false);
 
   // Used for snapshotting remaining work at the time of report export
-  const snapshotRef = useRef<{ time: string; items: InProgressWork[] } | null>(
+  const snapshotRef = useRef<{
+    time: string;
+    projectItems: InProgressWork[];
+    activeTodos: ActiveTodoRow[];
+    backlog: BacklogTodoGroup[];
+  } | null>(
     null,
   );
 
@@ -118,6 +141,19 @@ export default function ReportsPage() {
   const todoCategoryMap = useMemo(
     () => new Map(todoCategories.map((category) => [category.id, category.name])),
     [todoCategories],
+  );
+
+  const activeTodoRows = useMemo<ActiveTodoRow[]>(
+    () =>
+      activeTodos.map((todo) => ({
+        id: todo.id,
+        text: todo.text,
+        categoryName:
+          todoCategoryMap.get(todo.categoryId) || "Uncategorized",
+        isDone: todo.isDone,
+        createdAt: todo.createdAt,
+      })),
+    [activeTodos, todoCategoryMap],
   );
 
   const personalTodos = useMemo(() => {
@@ -226,6 +262,29 @@ export default function ReportsPage() {
       return sortDir === "desc" ? -result : result;
     });
   }, [combinedLogs, selectedProjectId, dateRange, sortField, sortDir]);
+
+  const backlogTodoGroups = useMemo<BacklogTodoGroup[]>(() => {
+    const grouped = new Map<string, BacklogTodoGroup["todos"]>();
+    backlogTodos.forEach((todo) => {
+      const categoryName =
+        todoCategoryMap.get(todo.categoryId) || "Uncategorized";
+      const existing = grouped.get(categoryName) ?? [];
+      existing.push({
+        id: todo.id,
+        text: todo.text,
+        isDone: todo.isDone,
+        createdAt: todo.createdAt,
+      });
+      grouped.set(categoryName, existing);
+    });
+
+    return Array.from(grouped.entries())
+      .map(([categoryName, todos]) => ({
+        categoryName,
+        todos: todos.sort((a, b) => b.createdAt - a.createdAt),
+      }))
+      .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+  }, [backlogTodos, todoCategoryMap]);
 
   const inProgressWork = useMemo(() => {
     // capture both 'In Progress' and 'To Do' as remaining work snapshot candidates
@@ -338,11 +397,40 @@ export default function ReportsPage() {
       output += "No work logs found for the current filters.\n\n";
     }
 
+    output += "=== Active Personal Todos ===\n";
+    if (activeTodoRows.length === 0) {
+      output += "No active personal todos.\n\n";
+    } else {
+      activeTodoRows.forEach((todo) => {
+        const statusLabel = todo.isDone ? "done" : "active";
+        output += `* ${todo.categoryName} — ${todo.text} (${statusLabel})\n`;
+      });
+      output += "\n";
+    }
+
+    output += "=== Todo Backlog ===\n";
+    if (backlogTodoGroups.length === 0) {
+      output += "Backlog is empty.\n\n";
+    } else {
+      backlogTodoGroups.forEach((group) => {
+        output += `${group.categoryName}\n`;
+        group.todos.forEach((todo) => {
+          output += `  - ${todo.text}${todo.isDone ? " (done)" : ""}\n`;
+        });
+        output += "\n";
+      });
+    }
+
     if (includeSnapshot) {
       // take a snapshot of remaining work at this moment
       const now = new Date();
       const snapshotItems = inProgressWork;
-      snapshotRef.current = { time: now.toISOString(), items: snapshotItems };
+      snapshotRef.current = {
+        time: now.toISOString(),
+        projectItems: snapshotItems,
+        activeTodos: activeTodoRows,
+        backlog: backlogTodoGroups,
+      };
 
       output += "=== Remaining Work Snapshot ===\n";
       output += `Snapshot time: ${now.toLocaleString()}\n\n`;
@@ -375,6 +463,11 @@ export default function ReportsPage() {
     setInProgressExportText(text);
     setIsInProgressExportDialogOpen(true);
   };
+
+  const hasSnapshotContent =
+    inProgressWork.length > 0 ||
+    activeTodoRows.length > 0 ||
+    backlogTodoGroups.length > 0;
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -415,7 +508,7 @@ export default function ReportsPage() {
           </Button>
           <Button
             onClick={handleExportInProgress}
-            disabled={inProgressWork.length === 0}
+            disabled={!hasSnapshotContent}
           >
             <Download className="mr-2 h-4 w-4" />
             Export With Snapshot
@@ -465,6 +558,88 @@ export default function ReportsPage() {
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Active Personal Todos</CardTitle>
+            <CardDescription>
+              Snapshot of personal todos you have in progress.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead>Todo</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeTodoRows.length > 0 ? (
+                activeTodoRows.map((todo) => (
+                  <TableRow key={todo.id}>
+                    <TableCell>{todo.categoryName}</TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {todo.text}
+                    </TableCell>
+                    <TableCell>{todo.isDone ? "Done" : "Active"}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center">
+                    No active personal todos.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Todo Backlog by Category</CardTitle>
+          <CardDescription>
+            Every backlog todo grouped by its category.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {backlogTodoGroups.length > 0 ? (
+            <div className="space-y-4">
+              {backlogTodoGroups.map((group) => (
+                <div
+                  key={group.categoryName}
+                  className="space-y-2 rounded-md border border-border/70 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold">{group.categoryName}</h3>
+                    <span className="text-xs text-muted-foreground">
+                      {group.todos.length}{" "}
+                      {group.todos.length === 1 ? "todo" : "todos"}
+                    </span>
+                  </div>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    {group.todos.map((todo) => (
+                      <li key={todo.id}>
+                        {todo.text}
+                        {todo.isDone ? " (done)" : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Backlog is empty.
+            </p>
+          )}
         </CardContent>
       </Card>
 
