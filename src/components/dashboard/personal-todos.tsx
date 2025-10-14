@@ -103,7 +103,7 @@ export function PersonalTodos() {
             Focus list for lightweight tasks. Manage backlog on the todo page.
           </CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow space-y-4">
+      <CardContent className="flex-grow space-y-3">
         <div className="flex gap-2">
           <Input
             placeholder="Add a new todo..."
@@ -123,7 +123,7 @@ export function PersonalTodos() {
           </Button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {activeTodos.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No active todos. Promote backlog items from the todo backlog page.
@@ -137,7 +137,7 @@ export function PersonalTodos() {
               return (
                 <div
                   key={todo.id}
-                  className="flex items-start gap-2 rounded-md border border-transparent p-2 transition-colors hover:border-border group"
+                  className="flex items-start gap-2 rounded-md border border-transparent p-1.5 transition-colors hover:border-border group"
                 >
                   <Checkbox
                     id={todo.id}
