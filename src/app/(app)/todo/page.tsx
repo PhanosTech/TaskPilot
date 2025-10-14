@@ -20,6 +20,8 @@ import {
   X,
   Play,
   NotebookPen,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useTodoContext, CATEGORY_COLOR_PALETTE } from "@/context/todo-context";
 import { PersonalTodos } from "@/components/dashboard/personal-todos";
@@ -34,6 +36,7 @@ export default function TodoBacklogPage() {
     addCategory,
     updateCategory,
     deleteCategory,
+    moveCategoryOrder,
     addBacklogTodo,
     updateTodoText,
     toggleTodoDone,
@@ -201,7 +204,7 @@ export default function TodoBacklogPage() {
           </p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {categories.map((category) => {
+            {categories.map((category, index) => {
               const todos = getCategoryTodos(category.id);
               const todoDraft = todoDrafts[category.id] ?? "";
               const isEditingCategory = editingCategory?.id === category.id;
@@ -283,6 +286,26 @@ export default function TodoBacklogPage() {
                           </CardDescription>
                         </div>
                         <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => moveCategoryOrder(category.id, "up")}
+                            disabled={index === 0}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                            <span className="sr-only">Move category up</span>
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => moveCategoryOrder(category.id, "down")}
+                            disabled={index === categories.length - 1}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                            <span className="sr-only">Move category down</span>
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"

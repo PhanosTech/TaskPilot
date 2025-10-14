@@ -55,6 +55,7 @@ type TodoContextValue = {
   addCategory: (name: string, color?: string) => string;
   updateCategory: (id: string, data: Partial<Pick<TodoCategory, "name" | "color">>) => void;
   deleteCategory: (id: string) => void;
+  moveCategoryOrder: (id: string, direction: "up" | "down") => void;
   addBacklogTodo: (categoryId: string, text: string) => void;
   addActiveTodo: (text: string, categoryId?: string) => void;
   updateTodoText: (id: string, text: string) => void;
@@ -311,6 +312,26 @@ export function TodoProvider({ children }: { children: ReactNode }) {
         categories: remainingCategories,
         todos: remainingTodos,
         activeOrder: remainingActiveOrder,
+      };
+    });
+  }, []);
+
+  const moveCategoryOrder = useCallback((id: string, direction: "up" | "down") => {
+    setState((prev) => {
+      const index = prev.categories.findIndex((category) => category.id === id);
+      if (index === -1) {
+        return prev;
+      }
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.categories.length) {
+        return prev;
+      }
+      const categories = [...prev.categories];
+      const [moved] = categories.splice(index, 1);
+      categories.splice(targetIndex, 0, moved);
+      return {
+        ...prev,
+        categories,
       };
     });
   }, []);
@@ -621,6 +642,7 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       addCategory,
       updateCategory,
       deleteCategory,
+      moveCategoryOrder,
       addBacklogTodo,
       addActiveTodo,
       updateTodoText,
@@ -647,6 +669,7 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       addCategory,
       updateCategory,
       deleteCategory,
+      moveCategoryOrder,
       addBacklogTodo,
       addActiveTodo,
       updateTodoText,
