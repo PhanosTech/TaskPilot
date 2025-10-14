@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Plus,
   Trash2,
@@ -28,15 +27,6 @@ import {
 } from "lucide-react";
 import { useTodoContext } from "@/context/todo-context";
 import { TodoDetailsDialog } from "@/components/todo/todo-details-dialog";
-
-function getReadableTextColor(hex: string): string {
-  const normalized = /^#[0-9A-Fa-f]{6}$/.test(hex) ? hex : "#1F2937";
-  const r = parseInt(normalized.slice(1, 3), 16);
-  const g = parseInt(normalized.slice(3, 5), 16);
-  const b = parseInt(normalized.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? "#111827" : "#F9FAFB";
-}
 
 export function PersonalTodos() {
   const {
@@ -193,16 +183,9 @@ export function PersonalTodos() {
                           <span className="sr-only">Cancel edit</span>
                         </Button>
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className="w-fit"
-                        style={{
-                          backgroundColor: categoryColor,
-                          color: getReadableTextColor(categoryColor),
-                        }}
-                      >
-                        {categoryName}
-                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        Category: {categoryName}
+                      </p>
                     </div>
                   ) : (
                     <div className="flex-1 space-y-1">
@@ -211,19 +194,17 @@ export function PersonalTodos() {
                           htmlFor={todo.id}
                           className={`font-normal ${todo.isDone ? "line-through text-muted-foreground" : ""}`}
                         >
-                          {todo.text}
+                          <span className="break-words">
+                            {todo.text}
+                            <span
+                              className="ml-2 inline text-xs font-medium text-muted-foreground"
+                              style={{ color: categoryColor }}
+                            >
+                              [{categoryName}]
+                            </span>
+                          </span>
                         </Label>
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className="w-fit"
-                        style={{
-                          backgroundColor: categoryColor,
-                          color: getReadableTextColor(categoryColor),
-                        }}
-                      >
-                        {categoryName}
-                      </Badge>
                     </div>
                   )}
                   {!isEditing && (
