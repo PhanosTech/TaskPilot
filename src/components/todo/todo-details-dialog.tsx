@@ -9,10 +9,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useTodoContext } from "@/context/todo-context";
-import { Trash2 } from "lucide-react";
+import { Trash2, ExternalLink } from "lucide-react";
 
 type TodoDetailsDialogProps = {
   todoId: string | null;
@@ -29,6 +30,7 @@ export function TodoDetailsDialog({
     getTodoById,
     getCategoryById,
     updateTodoNotes,
+    updateTodoLink,
     addTodoLog,
     deleteTodoLog,
     isHydrated,
@@ -79,6 +81,36 @@ export function TodoDetailsDialog({
                 onChange={(event) => updateTodoNotes(todo.id, event.target.value)}
                 placeholder="Add reference notes here..."
                 className="min-h-[120px]"
+                disabled={!isHydrated}
+              />
+            </section>
+
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium leading-none">Reference Link</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Optional link to open related notes (e.g., Obsidian).
+                  </p>
+                </div>
+                {todo.link?.trim() && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    asChild
+                    className="h-8 w-8"
+                  >
+                    <a href={todo.link} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="sr-only">Open link</span>
+                    </a>
+                  </Button>
+                )}
+              </div>
+              <Input
+                value={todo.link ?? ""}
+                onChange={(event) => updateTodoLink(todo.id, event.target.value)}
+                placeholder="obsidian://open?vault=..."
                 disabled={!isHydrated}
               />
             </section>

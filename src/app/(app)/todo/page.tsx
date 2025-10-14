@@ -22,6 +22,7 @@ import {
   NotebookPen,
   ArrowUp,
   ArrowDown,
+  ExternalLink,
 } from "lucide-react";
 import { useTodoContext, CATEGORY_COLOR_PALETTE } from "@/context/todo-context";
 import { PersonalTodos } from "@/components/dashboard/personal-todos";
@@ -367,6 +368,8 @@ export default function TodoBacklogPage() {
                       ) : (
                         todos.map((todo) => {
                           const isEditingTodo = editingTodo?.id === todo.id;
+                          const linkHref = todo.link?.trim() ?? "";
+                          const hasLink = linkHref.length > 0;
                           return (
                             <div
                               key={todo.id}
@@ -423,12 +426,28 @@ export default function TodoBacklogPage() {
                                 </div>
                               ) : (
                                 <div className="flex-1">
-                                  <Label
-                                    htmlFor={todo.id}
-                                    className={`font-normal ${todo.isDone ? "line-through text-muted-foreground" : ""}`}
-                                  >
-                                    {todo.text}
-                                  </Label>
+                                  <div className="flex items-center gap-2">
+                                    <Label
+                                      htmlFor={todo.id}
+                                      className={`font-normal ${todo.isDone ? "line-through text-muted-foreground" : ""}`}
+                                    >
+                                      {todo.text}
+                                    </Label>
+                                    {hasLink && (
+                                      <a
+                                        href={linkHref}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        onClick={(event) => event.stopPropagation()}
+                                        className="text-primary hover:text-primary/80"
+                                      >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        <span className="sr-only">
+                                          Open link
+                                        </span>
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                               {!isEditingTodo && (

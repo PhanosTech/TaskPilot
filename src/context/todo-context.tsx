@@ -60,6 +60,7 @@ type TodoContextValue = {
   addActiveTodo: (text: string, categoryId?: string) => void;
   updateTodoText: (id: string, text: string) => void;
   updateTodoNotes: (id: string, notes: string) => void;
+  updateTodoLink: (id: string, link: string) => void;
   toggleTodoDone: (id: string) => void;
   moveTodoToActive: (id: string) => void;
   moveTodoToBacklog: (id: string, categoryId?: string) => void;
@@ -138,6 +139,7 @@ function ensureCategoryColors(state: TodoState): TodoState {
       ...todo,
       notes: typeof todo.notes === "string" ? todo.notes : "",
       logs: normalizeTodoLogs(todo.logs),
+      link: typeof todo.link === "string" ? todo.link : "",
     })),
   };
 }
@@ -360,6 +362,7 @@ export function TodoProvider({ children }: { children: ReactNode }) {
         createdAt: timestamp,
         notes: "",
         logs: [],
+        link: "",
       };
       return {
         ...prev,
@@ -419,6 +422,7 @@ export function TodoProvider({ children }: { children: ReactNode }) {
           createdAt: timestamp,
           notes: "",
           logs: [],
+          link: "",
         };
         return {
           categories,
@@ -446,6 +450,16 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       ...prev,
       todos: prev.todos.map((todo) =>
         todo.id === id ? { ...todo, notes } : todo,
+      ),
+    }));
+  }, []);
+
+  const updateTodoLink = useCallback((id: string, link: string) => {
+    const trimmed = link.trim();
+    setState((prev) => ({
+      ...prev,
+      todos: prev.todos.map((todo) =>
+        todo.id === id ? { ...todo, link: trimmed } : todo,
       ),
     }));
   }, []);
@@ -647,6 +661,7 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       addActiveTodo,
       updateTodoText,
       updateTodoNotes,
+      updateTodoLink,
       toggleTodoDone,
       moveTodoToActive,
       moveTodoToBacklog,
@@ -674,6 +689,7 @@ export function TodoProvider({ children }: { children: ReactNode }) {
       addActiveTodo,
       updateTodoText,
       updateTodoNotes,
+      updateTodoLink,
       toggleTodoDone,
       moveTodoToActive,
       moveTodoToBacklog,

@@ -46,6 +46,7 @@ export type Task = {
   storyPoints: number;
   subtasks: Subtask[];
   logs: Log[];
+  link?: string;
 };
 
 /**

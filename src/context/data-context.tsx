@@ -391,6 +391,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         id: `task-${Date.now()}`,
         ...data,
         priority: (data as any).priority ?? DEFAULT_TASK_PRIORITY,
+        link: data.link ?? "",
         storyPoints,
         logs: [],
         subtasks,

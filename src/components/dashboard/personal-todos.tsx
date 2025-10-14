@@ -23,6 +23,7 @@ import {
   ArrowUp,
   ArrowDown,
   Undo2,
+  ExternalLink,
   NotebookPen,
 } from "lucide-react";
 import { useTodoContext } from "@/context/todo-context";
@@ -134,6 +135,8 @@ export function PersonalTodos() {
               const category = categoryLookup.get(todo.categoryId);
               const categoryName = category?.name ?? "Uncategorized";
               const categoryColor = category?.color ?? "#6B7280";
+              const linkHref = todo.link?.trim() ?? "";
+              const hasLink = linkHref.length > 0;
               return (
                 <div
                   key={todo.id}
@@ -184,7 +187,19 @@ export function PersonalTodos() {
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Category: {categoryName}
+                        <span>Category: {categoryName}</span>
+                        {hasLink && (
+                          <a
+                            href={linkHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className="ml-1 inline-flex items-center text-primary hover:text-primary/80"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            <span className="sr-only">Open link</span>
+                          </a>
+                        )}
                       </p>
                     </div>
                   ) : (
@@ -192,18 +207,28 @@ export function PersonalTodos() {
                       <div className="flex items-start gap-2">
                         <Label
                           htmlFor={todo.id}
-                          className={`font-normal ${todo.isDone ? "line-through text-muted-foreground" : ""}`}
+                          className={`font-normal flex items-center gap-2 ${todo.isDone ? "line-through text-muted-foreground" : ""}`}
                         >
-                          <span className="break-words">
-                            {todo.text}
-                            <span
-                              className="ml-2 inline text-xs font-medium text-muted-foreground"
-                              style={{ color: categoryColor }}
-                            >
-                              [{categoryName}]
-                            </span>
+                          <span className="break-words">{todo.text}</span>
+                          <span
+                            className="inline text-xs font-medium text-muted-foreground"
+                            style={{ color: categoryColor }}
+                          >
+                            [{categoryName}]
                           </span>
                         </Label>
+                        {hasLink && (
+                          <a
+                            href={linkHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className="text-primary hover:text-primary/80"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            <span className="sr-only">Open link</span>
+                          </a>
+                        )}
                       </div>
                     </div>
                   )}

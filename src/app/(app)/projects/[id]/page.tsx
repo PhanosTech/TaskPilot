@@ -63,7 +63,7 @@ import { NoteRenderer } from "@/components/projects/note-renderer";
 import { TasksByStatusChart } from "@/components/charts/tasks-by-status-chart";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, ExternalLink } from "lucide-react";
 
 const priorityOrder: Record<TaskPriority, number> = TASK_PRIORITY_ORDER;
 
@@ -320,6 +320,8 @@ export default function ProjectPage() {
                         const completedSubtaskPoints = task.subtasks
                           .filter((st) => st.isCompleted)
                           .reduce((sum, st) => sum + st.storyPoints, 0);
+                        const linkHref = task.link?.trim() ?? "";
+                        const hasLink = linkHref.length > 0;
 
                         let progress = 0;
                         if (task.status === "Done") {
@@ -336,7 +338,23 @@ export default function ProjectPage() {
                             className="cursor-pointer"
                           >
                             <TableCell className="font-medium hover:underline">
-                              {task.title}
+                              <div className="flex items-center gap-1">
+                                <span>{task.title}</span>
+                                {hasLink && (
+                                  <a
+                                    href={linkHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="text-primary hover:text-primary/80"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span className="sr-only">
+                                      Open linked note
+                                    </span>
+                                  </a>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <Select

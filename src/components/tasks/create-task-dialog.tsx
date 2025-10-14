@@ -44,6 +44,7 @@ import { DataContext } from "@/context/data-context";
 const taskSchema = z.object({
   title: z.string().min(1, "Task name is required"),
   description: z.string().optional(),
+  link: z.string().trim().optional(),
   deadline: z.date().optional(),
   priority: z.enum(["Low", "Medium", "High"]),
   subtasks: z
@@ -113,6 +114,7 @@ export function CreateTaskDialog({
     defaultValues: {
       title: "",
       description: "",
+      link: "",
       priority: "Low",
       subtasks: [],
       status: defaultStatus,
@@ -126,6 +128,7 @@ export function CreateTaskDialog({
       form.reset({
         title: "",
         description: "",
+        link: "",
         priority: "Low",
         subtasks: [],
         deadline: addDays(new Date(), 4),
@@ -219,6 +222,7 @@ export function CreateTaskDialog({
       description: data.description ?? "",
       deadline: data.deadline?.toISOString(),
       subtasks: finalSubtasks,
+      link: data.link?.trim() ?? "",
     });
 
     toast({
@@ -304,6 +308,22 @@ export function CreateTaskDialog({
                   <FormControl>
                     <Textarea
                       placeholder="e.g. A brief description of the task."
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="link"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reference Link</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="obsidian://open?vault=..."
                       {...field}
                     />
                   </FormControl>

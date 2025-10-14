@@ -8,7 +8,7 @@ import {
     categories as initialCategories,
 } from '@/lib/data';
 import type { Project, ProjectCategory, Task } from '@/lib/types';
-import { initialTodoState, type TodoLog, type TodoState } from '@/lib/todo-storage';
+import { initialTodoState, type TodoLog, type TodoState, type TodoItem } from '@/lib/todo-storage';
 
 const getDbPath = () => {
     // In production server environment, use DB_PATH env var.
@@ -45,6 +45,7 @@ const normalizeTasks = (value: unknown): Task[] => {
     const tasks = Array.isArray(value) ? (value as Task[]) : initialTasks;
     return tasks.map((task) => ({
         ...task,
+        link: typeof (task as { link?: unknown }).link === 'string' ? (task as { link: string }).link : '',
     }));
 };
 
@@ -78,41 +79,44 @@ const normalizeTodoState = (value: unknown): TodoState => {
     const raw = (value ?? initialTodoState) as Partial<TodoState>;
     const categories = Array.isArray(raw.categories) ? raw.categories : [];
     const todos = Array.isArray(raw.todos) ? raw.todos : [];
-    const normalizedTodos = todos
-        .map((todo) => {
-            if (!todo || typeof todo !== 'object') {
-                return null;
-            }
-            const id = typeof (todo as { id?: unknown }).id === 'string'
-                ? (todo as { id: string }).id
-                : `todo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            const text = typeof (todo as { text?: unknown }).text === 'string'
-                ? (todo as { text: string }).text
-                : '';
-            const categoryId = typeof (todo as { categoryId?: unknown }).categoryId === 'string'
-                ? (todo as { categoryId: string }).categoryId
-                : 'cat-default';
-            const status = (todo as { status?: unknown }).status === 'active' ? 'active' : 'backlog';
-            const isDone = Boolean((todo as { isDone?: unknown }).isDone);
-            const createdAt = typeof (todo as { createdAt?: unknown }).createdAt === 'number'
-                ? (todo as { createdAt: number }).createdAt
-                : Date.now();
-            const notes = typeof (todo as { notes?: unknown }).notes === 'string'
-                ? (todo as { notes: string }).notes
-                : '';
-            const logs = normalizeTodoLogs((todo as { logs?: unknown }).logs);
-            return {
-                id,
-                text,
-                categoryId,
-                status,
-                isDone,
-                createdAt,
-                notes,
-                logs,
-            };
-        })
-        .filter((todo): todo is TodoState['todos'][number] => !!todo);
+    const normalizedTodos: TodoItem[] = [];
+    for (const todo of todos) {
+        if (!todo || typeof todo !== 'object') {
+            continue;
+        }
+        const id = typeof (todo as { id?: unknown }).id === 'string'
+            ? (todo as { id: string }).id
+            : `todo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const text = typeof (todo as { text?: unknown }).text === 'string'
+            ? (todo as { text: string }).text
+            : '';
+        const categoryId = typeof (todo as { categoryId?: unknown }).categoryId === 'string'
+            ? (todo as { categoryId: string }).categoryId
+            : 'cat-default';
+        const status = (todo as { status?: unknown }).status === 'active' ? 'active' : 'backlog';
+        const isDone = Boolean((todo as { isDone?: unknown }).isDone);
+        const createdAt = typeof (todo as { createdAt?: unknown }).createdAt === 'number'
+            ? (todo as { createdAt: number }).createdAt
+            : Date.now();
+        const notes = typeof (todo as { notes?: unknown }).notes === 'string'
+            ? (todo as { notes: string }).notes
+            : '';
+        const logs = normalizeTodoLogs((todo as { logs?: unknown }).logs);
+        const link = typeof (todo as { link?: unknown }).link === 'string'
+            ? (todo as { link: string }).link
+            : '';
+        normalizedTodos.push({
+            id,
+            text,
+            categoryId,
+            status,
+            isDone,
+            createdAt,
+            notes,
+            logs,
+            link,
+        });
+    }
 
     const todoIds = new Set(normalizedTodos.map((todo) => todo.id));
     const activeOrder = Array.isArray(raw.activeOrder)

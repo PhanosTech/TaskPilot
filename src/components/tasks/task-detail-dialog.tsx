@@ -27,7 +27,7 @@ import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { Input } from "../ui/input";
-import { Calendar as CalendarIcon, X, Edit2, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, X, Edit2, Trash2, ExternalLink } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -90,6 +90,7 @@ const [deadline, setDeadline] = useState<Date | undefined>(
   task.deadline ? new Date(task.deadline) : undefined
 );
 
+const [link, setLink] = useState(task.link ?? "");
 const [newLog, setNewLog] = useState("");
 const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
 const [newSubtaskPoints, setNewSubtaskPoints] = useState(2);
@@ -119,6 +120,7 @@ const subtaskInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     setStatus(task.status);
     setPriority(task.priority);
     setDeadline(task.deadline ? new Date(task.deadline) : undefined);
+    setLink(task.link ?? "");
     setEditingLogId(null);
     setDeletingLogId(null);
     setDeleteAlertOpen(false);
@@ -172,6 +174,7 @@ const subtaskInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
       priority,
       deadline: deadline?.toISOString(),
       storyPoints: storyPoints,
+      link: link.trim(),
     });
     toast({
       title: "Task Updated",
@@ -281,8 +284,28 @@ const subtaskInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
             <DialogTitle>
                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold" />
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="space-y-3">
                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add a description..." />
+               <div className="flex items-center gap-2">
+                 <Input
+                   value={link}
+                   onChange={(e) => setLink(e.target.value)}
+                   placeholder="obsidian://open?vault=..."
+                 />
+                 {link.trim() && (
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     asChild
+                     className="h-8 w-8 shrink-0"
+                   >
+                     <a href={link} target="_blank" rel="noreferrer">
+                       <ExternalLink className="h-4 w-4" />
+                       <span className="sr-only">Open link</span>
+                     </a>
+                   </Button>
+                 )}
+               </div>
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

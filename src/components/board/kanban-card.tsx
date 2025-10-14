@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { Calendar, MessageSquare, Star } from "lucide-react";
+import { Calendar, MessageSquare, Star, ExternalLink } from "lucide-react";
 import type { Task, TaskPriority, ProjectCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -125,7 +125,21 @@ export function KanbanCard({
                   ))}
               </div>
             </div>
-            <CardTitle className="text-base pt-0">{task.title}</CardTitle>
+            <CardTitle className="text-base pt-0 flex items-center gap-2">
+              <span>{task.title}</span>
+              {task.link?.trim() && (
+                <a
+                  href={task.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                  className="text-primary hover:text-primary/80"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="sr-only">Open linked note</span>
+                </a>
+              )}
+            </CardTitle>
           </CardHeader>
 
           <CardFooter className="p-3 pt-0 flex flex-col items-start gap-3">

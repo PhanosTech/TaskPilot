@@ -28,6 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { PersonalTodos } from "@/components/dashboard/personal-todos";
 import { Scratchpad } from "@/components/dashboard/scratchpad";
+import { ExternalLink } from "lucide-react";
 
 const priorityColors: Record<TaskPriority, string> = {
   High: "bg-red-500",
@@ -173,6 +174,8 @@ export default function DashboardPage() {
                     const completedSubtaskPoints = task.subtasks
                       .filter((st) => st.isCompleted)
                       .reduce((sum, st) => sum + st.storyPoints, 0);
+                    const linkHref = task.link?.trim() ?? "";
+                    const hasLink = linkHref.length > 0;
 
                     let progress = 0;
                     if (task.status === "Done") {
@@ -196,7 +199,23 @@ export default function DashboardPage() {
                             <span
                               className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`}
                             />
-                            <div className="font-medium">{task.title}</div>
+                            <div className="font-medium flex items-center gap-1">
+                              <span>{task.title}</span>
+                              {hasLink && (
+                                <a
+                                  href={linkHref}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="text-primary hover:text-primary/80"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                  <span className="sr-only">
+                                    Open linked note
+                                  </span>
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>

@@ -27,6 +27,7 @@ export type TodoItem = {
   createdAt: number;
   notes: string;
   logs: TodoLog[];
+  link?: string;
 };
 
 export type TodoState = {
