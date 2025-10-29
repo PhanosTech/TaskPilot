@@ -12,37 +12,27 @@ export const metadata: Metadata = {
   description: "A modern, offline-first project management application.",
   icons: {
     icon: [
-      { url: "/favicon.ico" },
       {
-        url: "/favicon-16x16.png",
-        sizes: "16x16",
-        type: "image/png",
+        url: "/logo.svg",
+        type: "image/svg+xml",
+        sizes: "any",
       },
       {
-        url: "/favicon-32x32.png",
-        sizes: "32x32",
-        type: "image/png",
-      },
-      {
-        url: "/android-chrome-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        url: "/android-chrome-512x512.png",
+        url: "/logo.png",
         sizes: "512x512",
         type: "image/png",
       },
+    ],
+    shortcut: [
       {
-        url: "/logo.svg",
-        rel: "icon",
-        type: "image/svg+xml",
-        sizes: "any",
+        url: "/logo.png",
+        sizes: "512x512",
+        type: "image/png",
       },
     ],
     apple: [
       {
-        url: "/apple-touch-icon.png",
+        url: "/logo.png",
         sizes: "180x180",
         type: "image/png",
       },

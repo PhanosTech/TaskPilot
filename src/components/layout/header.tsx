@@ -3,6 +3,7 @@
 
 import { useState, useContext, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   Sheet,
@@ -24,7 +25,6 @@ import {
   Menu,
   Home,
   Package2,
-  Users,
   BarChart3,
   ListChecks,
   FileText,
@@ -151,7 +151,12 @@ export function AppHeader() {
                 onClick={() => setIsSheetOpen(false)}
                 className="flex items-center gap-2 text-lg font-semibold mb-4"
               >
-                <Users className="h-6 w-6" />
+                <Image
+                  src="/logo.svg"
+                  alt="TaskPilot Logo"
+                  width={24}
+                  height={24}
+                />
                 <span>TaskPilot</span>
               </Link>
               {renderNavLinks(true)}
