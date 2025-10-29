@@ -2,7 +2,7 @@
 
 import { useState, useContext, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
+import type { Task, TaskPriority, TaskStatus, QuickTask } from "@/lib/types";
 import { DataContext } from "@/context/data-context";
 import { TASK_PRIORITY_ORDER, DEFAULT_PROJECT_PRIORITY } from "@/lib/constants";
 import {
@@ -29,6 +29,9 @@ import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { PersonalTodos } from "@/components/dashboard/personal-todos";
 import { Scratchpad } from "@/components/dashboard/scratchpad";
 import { ExternalLink } from "lucide-react";
+import { QuickTaskDetailDialog } from "@/components/projects/quick-task-detail-dialog";
+import { quickTaskToTask } from "@/lib/quick-task-utils";
+import { cn } from "@/lib/utils";
 
 const priorityColors: Record<TaskPriority, string> = {
   High: "bg-red-500",
@@ -39,6 +42,10 @@ const priorityColors: Record<TaskPriority, string> = {
 // Use centralized task priority ordering from constants
 const priorityOrder: Record<TaskPriority, number> = TASK_PRIORITY_ORDER;
 
+type QueueItem =
+  | { kind: "full"; task: Task }
+  | { kind: "quick"; task: QuickTask };
+
 /**
  * @page DashboardPage
  * The main dashboard of the application, providing a high-level overview of projects and tasks.
@@ -48,6 +55,7 @@ export default function DashboardPage() {
   const {
     projects,
     tasks,
+    quickTasks,
     categories,
     updateTask,
     deleteTask,
@@ -57,8 +65,14 @@ export default function DashboardPage() {
     addLog,
     updateLog,
     deleteLog,
+    updateQuickTask,
+    deleteQuickTask,
+    addQuickTaskLog,
+    updateQuickTaskLog,
+    deleteQuickTaskLog,
   } = useContext(DataContext);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedQuickTaskId, setSelectedQuickTaskId] = useState<string | null>(null);
   const [showToDo, setShowToDo] = useState(false);
   const router = useRouter();
 
@@ -67,8 +81,13 @@ export default function DashboardPage() {
     return tasks.find((t) => t.id === selectedTaskId) || null;
   }, [selectedTaskId, tasks]);
 
-  const activeWorkQueue = useMemo(() => {
-    if (!projects || !tasks) return [];
+  const selectedQuickTask = useMemo(() => {
+    if (!selectedQuickTaskId) return null;
+    return quickTasks.find((task) => task.id === selectedQuickTaskId) || null;
+  }, [selectedQuickTaskId, quickTasks]);
+
+  const activeWorkQueue = useMemo<QueueItem[]>(() => {
+    if (!projects) return [];
 
     const inProgressProjectIds = new Set(
       projects.filter((p) => p.status === "In Progress").map((p) => p.id),
@@ -79,37 +98,58 @@ export default function DashboardPage() {
       statusesToShow.push("To Do");
     }
 
-    return tasks
+    const queue: QueueItem[] = [];
+
+    tasks
       .filter(
-        (t) =>
-          inProgressProjectIds.has(t.projectId) &&
-          statusesToShow.includes(t.status),
+        (task) =>
+          inProgressProjectIds.has(task.projectId) &&
+          statusesToShow.includes(task.status),
       )
-      .sort((a, b) => {
-        const projectA = projects.find((p) => p.id === a.projectId);
-        const projectB = projects.find((p) => p.id === b.projectId);
+      .forEach((task) => queue.push({ kind: "full", task }));
 
-        const projectPriorityA = projectA?.priority ?? 4;
-        const projectPriorityB = projectB?.priority ?? 4;
+    quickTasks
+      .filter(
+        (task) =>
+          inProgressProjectIds.has(task.projectId) &&
+          statusesToShow.includes(task.status),
+      )
+      .forEach((task) => queue.push({ kind: "quick", task }));
 
-        // Sort projects so higher-priority projects appear first.
-        // Use descending numeric order for project priority.
-        if (projectPriorityA !== projectPriorityB) {
-          return projectPriorityB - projectPriorityA;
-        }
+    queue.sort((a, b) => {
+      const projectA = projects.find((p) => p.id === a.task.projectId);
+      const projectB = projects.find((p) => p.id === b.task.projectId);
 
-        // For tasks within the same project priority, sort by task priority (High -> Low).
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
-      });
-  }, [projects, tasks, showToDo]);
+      const projectPriorityA = projectA?.priority ?? DEFAULT_PROJECT_PRIORITY;
+      const projectPriorityB = projectB?.priority ?? DEFAULT_PROJECT_PRIORITY;
+
+      if (projectPriorityA !== projectPriorityB) {
+        return projectPriorityB - projectPriorityA;
+      }
+
+      const priorityA = priorityOrder[a.task.priority];
+      const priorityB = priorityOrder[b.task.priority];
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      const titleA = a.task.title.toLowerCase();
+      const titleB = b.task.title.toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+
+    return queue;
+  }, [projects, tasks, quickTasks, showToDo]);
 
   /**
    * @function handleTaskClick
    * A handler to select a task and open its detail view.
    * @param {Task} task - The task that was clicked.
    */
-  const handleTaskClick = (task: Task) => {
+  const handleFullTaskClick = (task: Task) => {
     setSelectedTaskId(task.id);
+    setSelectedQuickTaskId(null);
   };
 
   /**
@@ -155,9 +195,11 @@ export default function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activeWorkQueue.map((task) => {
+                  {activeWorkQueue.map((item) => {
+                    const baseTask =
+                      item.kind === "full" ? item.task : quickTaskToTask(item.task);
                     const project = projects.find(
-                      (p) => p.id === task.projectId,
+                      (p) => p.id === baseTask.projectId,
                     );
                     const categoryIds = project?.categoryIds?.length
                       ? project.categoryIds
@@ -167,55 +209,147 @@ export default function DashboardPage() {
                     const projectCategories = categories.filter((cat) =>
                       categoryIds.includes(cat.id),
                     );
-                    const totalSubtaskPoints = task.subtasks.reduce(
+                    const totalSubtaskPoints = baseTask.subtasks.reduce(
                       (sum, st) => sum + st.storyPoints,
                       0,
                     );
-                    const completedSubtaskPoints = task.subtasks
+                    const completedSubtaskPoints = baseTask.subtasks
                       .filter((st) => st.isCompleted)
                       .reduce((sum, st) => sum + st.storyPoints, 0);
-                    const linkHref = task.link?.trim() ?? "";
+                    const linkHref = baseTask.link?.trim() ?? "";
                     const hasLink = linkHref.length > 0;
 
                     let progress = 0;
-                    if (task.status === "Done") {
+                    if (baseTask.status === "Done") {
                       progress = 100;
                     } else if (totalSubtaskPoints > 0) {
                       progress =
                         (completedSubtaskPoints / totalSubtaskPoints) * 100;
                     }
 
+                    if (item.kind === "full") {
+                      const task = item.task;
+                      return (
+                        <TableRow
+                          key={task.id}
+                          onClick={() => handleFullTaskClick(task)}
+                          onDoubleClick={() =>
+                            handleTaskDoubleClick(task.projectId)
+                          }
+                          className="cursor-pointer"
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`}
+                              />
+                              <div className="font-medium flex items-center gap-1">
+                                <span>{task.title}</span>
+                                {hasLink && (
+                                  <a
+                                    href={linkHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="text-primary hover:text-primary/80"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span className="sr-only">
+                                      Open linked note
+                                    </span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="text-left font-medium text-primary hover:underline"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (project) {
+                                    handleTaskDoubleClick(project.id);
+                                  }
+                                }}
+                              >
+                                {project?.name}
+                              </button>
+                              <div className="flex flex-wrap gap-1">
+                                {projectCategories
+                                  .filter((cat) => cat.id !== "cat-default")
+                                  .map((cat) => (
+                                    <Badge
+                                      key={cat.id}
+                                      style={{
+                                        backgroundColor: cat.color,
+                                      }}
+                                      className="text-white"
+                                    >
+                                      {cat.name}
+                                    </Badge>
+                                  ))}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{task.status}</TableCell>
+                          <TableCell>
+                            <Progress value={progress} className="w-[120px]" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    const quickTask = item.task;
+                    const quickProgress = quickTask.status === "Done" ? 100 : 0;
+
                     return (
                       <TableRow
-                        key={task.id}
-                        onClick={() => handleTaskClick(task)}
-                        onDoubleClick={() =>
-                          handleTaskDoubleClick(task.projectId)
-                        }
+                        key={quickTask.id}
+                        onClick={() => {
+                          setSelectedQuickTaskId(quickTask.id);
+                          setSelectedTaskId(null);
+                        }}
+                        onDoubleClick={() => handleTaskDoubleClick(quickTask.projectId)}
                         className="cursor-pointer"
                       >
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`h-2 w-2 rounded-full ${priorityColors[task.priority]}`}
-                            />
-                            <div className="font-medium flex items-center gap-1">
-                              <span>{task.title}</span>
-                              {hasLink && (
-                                <a
-                                  href={linkHref}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={(event) => event.stopPropagation()}
-                                  className="text-primary hover:text-primary/80"
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2 w-2 rounded-full ${priorityColors[quickTask.priority]}`}
+                              />
+                              <div className="font-medium flex items-center gap-1">
+                                <span
+                                  className={cn(
+                                    quickTask.status === "Done" &&
+                                      "line-through text-muted-foreground",
+                                  )}
                                 >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                  <span className="sr-only">
-                                    Open linked note
-                                  </span>
-                                </a>
-                              )}
+                                  {quickTask.title}
+                                </span>
+                                {hasLink && (
+                                  <a
+                                    href={linkHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="text-primary hover:text-primary/80"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span className="sr-only">
+                                      Open linked note
+                                    </span>
+                                  </a>
+                                )}
+                              </div>
                             </div>
+                            {quickTask.description.trim() && (
+                              <span className="text-xs text-muted-foreground break-words">
+                                {quickTask.description}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -238,12 +372,10 @@ export default function DashboardPage() {
                                 .map((cat) => (
                                   <Badge
                                     key={cat.id}
-                                    variant="outline"
                                     style={{
-                                      borderColor: cat.color,
-                                      color: cat.color,
+                                      backgroundColor: cat.color,
                                     }}
-                                    className="text-xs"
+                                    className="text-white"
                                   >
                                     {cat.name}
                                   </Badge>
@@ -251,11 +383,9 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell>{quickTask.status}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{task.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Progress value={progress} className="w-[100px]" />
+                          <Progress value={quickProgress} className="w-[120px]" />
                         </TableCell>
                       </TableRow>
                     );
@@ -285,6 +415,25 @@ export default function DashboardPage() {
           onAddLog={addLog}
           onUpdateLog={updateLog}
           onDeleteLog={deleteLog}
+        />
+      )}
+      {selectedQuickTask && (
+        <QuickTaskDetailDialog
+          task={selectedQuickTask}
+          open={!!selectedQuickTask}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setSelectedQuickTaskId(null);
+            }
+          }}
+          onUpdateTask={updateQuickTask}
+          onDeleteTask={(taskId) => {
+            deleteQuickTask(taskId);
+            setSelectedQuickTaskId(null);
+          }}
+          onAddLog={addQuickTaskLog}
+          onUpdateLog={updateQuickTaskLog}
+          onDeleteLog={deleteQuickTaskLog}
         />
       )}
     </>

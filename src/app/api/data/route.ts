@@ -6,8 +6,9 @@ import {
     projects as initialProjects,
     tasks as initialTasks,
     categories as initialCategories,
+    quickTasks as initialQuickTasks,
 } from '@/lib/data';
-import type { Project, ProjectCategory, Task } from '@/lib/types';
+import type { Project, ProjectCategory, Task, QuickTask, TaskStatus } from '@/lib/types';
 import { initialTodoState, type TodoLog, type TodoState, type TodoItem } from '@/lib/todo-storage';
 
 const getDbPath = () => {
@@ -21,6 +22,7 @@ const getDbPath = () => {
 type StoredData = {
     projects: Project[];
     tasks: Task[];
+    quickTasks: QuickTask[];
     categories: ProjectCategory[];
     personalTodos: TodoState;
     scratchpad: string;
@@ -47,6 +49,65 @@ const normalizeTasks = (value: unknown): Task[] => {
         ...task,
         link: typeof (task as { link?: unknown }).link === 'string' ? (task as { link: string }).link : '',
     }));
+};
+
+const normalizeQuickTasks = (value: unknown): QuickTask[] => {
+    const tasks = Array.isArray(value) ? (value as QuickTask[]) : initialQuickTasks;
+    const allowedPriorities: QuickTask['priority'][] = ['High', 'Medium', 'Low'];
+    const allowedStatuses: TaskStatus[] = ['To Do', 'In Progress', 'Done'];
+    return tasks.map((task) => {
+        const rawDescription =
+            typeof (task as { description?: unknown }).description === 'string'
+                ? (task as { description: string }).description
+                : '';
+        const description = rawDescription.trim();
+        const rawTitle =
+            typeof (task as { title?: unknown }).title === 'string'
+                ? (task as { title: string }).title
+                : '';
+        const title = rawTitle.trim() || description || 'Quick task';
+        const rawStatus = (task as { status?: unknown }).status;
+        const status = allowedStatuses.includes(rawStatus as TaskStatus)
+            ? (rawStatus as TaskStatus)
+            : 'To Do';
+        const points =
+            typeof (task as { points?: unknown }).points === 'number'
+                ? Math.max(1, Math.min(5, Math.round((task as { points: number }).points)))
+                : 1;
+        const priority = allowedPriorities.includes((task as { priority?: unknown }).priority as QuickTask['priority'])
+            ? ((task as { priority: QuickTask['priority'] }).priority)
+            : 'Low';
+        return {
+            ...task,
+            points,
+            priority,
+            status,
+            isDone:
+                status === 'Done' || Boolean((task as { isDone?: unknown }).isDone),
+            title,
+            description,
+            logs: Array.isArray(task.logs)
+                ? task.logs.map((log) => ({
+                      id:
+                          typeof (log as { id?: unknown }).id === 'string'
+                              ? (log as { id: string }).id
+                              : `log-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                      content:
+                          typeof (log as { content?: unknown }).content === 'string'
+                              ? (log as { content: string }).content
+                              : '',
+                      createdAt:
+                          typeof (log as { createdAt?: unknown }).createdAt === 'string'
+                              ? (log as { createdAt: string }).createdAt
+                              : new Date().toISOString(),
+                  })).filter((log) => !!log.content)
+                : [],
+            link:
+                typeof (task as { link?: unknown }).link === 'string'
+                    ? (task as { link: string }).link
+                    : '',
+        };
+    });
 };
 
 const normalizeTodoLogs = (value: unknown): TodoLog[] => {
@@ -135,6 +196,7 @@ const normalizeData = (value: unknown): StoredData => {
     return {
         projects: normalizeProjects(raw.projects),
         tasks: normalizeTasks(raw.tasks),
+        quickTasks: normalizeQuickTasks(raw.quickTasks),
         categories: normalizeCategories(raw.categories),
         personalTodos: normalizeTodoState(raw.personalTodos),
         scratchpad: typeof raw.scratchpad === 'string' ? raw.scratchpad : '',
@@ -154,6 +216,7 @@ export async function GET() {
             const initialData = normalizeData({
                 projects: initialProjects,
                 tasks: initialTasks,
+                quickTasks: initialQuickTasks,
                 categories: initialCategories,
                 personalTodos: initialTodoState,
                 scratchpad: '',
@@ -179,6 +242,7 @@ export async function POST(request: Request) {
                 existing = normalizeData({
                     projects: initialProjects,
                     tasks: initialTasks,
+                    quickTasks: initialQuickTasks,
                     categories: initialCategories,
                     personalTodos: initialTodoState,
                     scratchpad: '',
@@ -194,6 +258,7 @@ export async function POST(request: Request) {
         const merged = normalizeData({
             projects: hasOwn('projects') ? body.projects : existing.projects,
             tasks: hasOwn('tasks') ? body.tasks : existing.tasks,
+            quickTasks: hasOwn('quickTasks') ? body.quickTasks : existing.quickTasks,
             categories: hasOwn('categories') ? body.categories : existing.categories,
             personalTodos: hasOwn('personalTodos') ? body.personalTodos : existing.personalTodos,
             scratchpad: hasOwn('scratchpad') ? body.scratchpad : existing.scratchpad,

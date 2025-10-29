@@ -33,6 +33,22 @@ export type Log = {
 };
 
 /**
+ * Represents a lightweight project task for quick tracking.
+ */
+export type QuickTask = {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  points: number;
+  priority: TaskPriority;
+  status: TaskStatus;
+  isDone: boolean;
+  logs: Log[];
+  link?: string;
+};
+
+/**
  * Represents a single task, which belongs to a project.
  */
 export type Task = {

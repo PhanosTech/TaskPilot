@@ -99,7 +99,7 @@ export function PersonalTodos() {
     <>
       <Card className="col-span-1 lg:col-span-3 flex flex-col">
         <CardHeader>
-          <CardTitle>Personal Todos</CardTitle>
+          <CardTitle>In-Progress Todos</CardTitle>
           <CardDescription>
             Focus list for lightweight tasks. Manage backlog on the todo page.
           </CardDescription>
@@ -317,7 +317,7 @@ export function PersonalTodos() {
             <Link href="/todo">Open todo backlog</Link>
           </Button>
         </CardFooter>
-        )}
+      )}
       </Card>
       <TodoDetailsDialog
         todoId={detailsTodoId}

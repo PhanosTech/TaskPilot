@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { DataContext } from "@/context/data-context";
 import { cn } from "@/lib/utils";
+import { quickTaskToTask } from "@/lib/quick-task-utils";
 import { ManageCategoriesDialog } from "@/components/projects/manage-categories-dialog";
 import { usePersistentState } from "@/hooks/use-persistent-state";
 import { CategoryMultiSelect } from "@/components/projects/category-multi-select";
@@ -39,7 +40,7 @@ const statusOrder: ProjectStatus[] = [
 ];
 
 export default function ProjectsPage() {
-  const { projects, tasks, categories, createProject, updateProject } =
+  const { projects, tasks, quickTasks, categories, createProject, updateProject } =
     useContext(DataContext);
   const [showArchived, setShowArchived] = useState(false);
   const [showDone, setShowDone] = useState(false);
@@ -54,12 +55,20 @@ export default function ProjectsPage() {
         const projectTasks = tasks.filter(
           (task) => task.projectId === project.id,
         );
-        const totalStoryPoints = projectTasks.reduce(
+        const projectQuickTasks = quickTasks.filter(
+          (quickTask) => quickTask.projectId === project.id,
+        );
+        const allTasks = [
+          ...projectTasks,
+          ...projectQuickTasks.map(quickTaskToTask),
+        ];
+
+        const totalStoryPoints = allTasks.reduce(
           (sum, task) => sum + task.storyPoints,
           0,
         );
 
-        const completedStoryPoints = projectTasks.reduce((sum, task) => {
+        const completedStoryPoints = allTasks.reduce((sum, task) => {
           if (task.status === "Done") {
             return sum + task.storyPoints;
           }
@@ -85,9 +94,13 @@ export default function ProjectsPage() {
             ? (completedStoryPoints / totalStoryPoints) * 100
             : 0;
 
-        return { ...project, taskCount: projectTasks.length, progress };
+        return {
+          ...project,
+          taskCount: projectTasks.length + projectQuickTasks.length,
+          progress,
+        };
       }),
-    [projects, tasks],
+    [projects, tasks, quickTasks],
   );
 
   const sortedProjects = useMemo(() => {

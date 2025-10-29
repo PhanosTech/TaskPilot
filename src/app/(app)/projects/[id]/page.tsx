@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import type {
   Project,
   Task,
+  QuickTask,
+  Log,
   Note,
   ProjectStatus,
   TaskStatus,
@@ -60,12 +62,35 @@ import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { NotesTabContent } from "@/components/projects/notes-tab-content";
 import { NoteRenderer } from "@/components/projects/note-renderer";
+import { QuickTaskDetailDialog } from "@/components/projects/quick-task-detail-dialog";
+import { QuickTaskCreateDialog } from "@/components/projects/quick-task-create-dialog";
 import { TasksByStatusChart } from "@/components/charts/tasks-by-status-chart";
 import { cn } from "@/lib/utils";
+import { quickTaskToTask } from "@/lib/quick-task-utils";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, ExternalLink } from "lucide-react";
 
 const priorityOrder: Record<TaskPriority, number> = TASK_PRIORITY_ORDER;
+const statusOrder: Record<TaskStatus, number> = {
+  "To Do": 0,
+  "In Progress": 1,
+  "Done": 2,
+};
+
+type CombinedTaskRow =
+  | {
+      kind: "full";
+      task: Task;
+      priority: TaskPriority;
+      status: TaskStatus;
+    }
+  | {
+      kind: "quick";
+      task: QuickTask;
+      priority: TaskPriority;
+      status: TaskStatus;
+    };
 
 /**
  * @page ProjectPage
@@ -78,6 +103,7 @@ export default function ProjectPage() {
   const {
     projects,
     tasks,
+    quickTasks,
     updateProject,
     deleteProject,
     createTask,
@@ -89,6 +115,13 @@ export default function ProjectPage() {
     addLog,
     updateLog,
     deleteLog,
+    getProjectQuickTasks,
+    createQuickTask,
+    updateQuickTask,
+    deleteQuickTask,
+    addQuickTaskLog,
+    updateQuickTaskLog,
+    deleteQuickTaskLog,
   } = useContext(DataContext);
 
   const project = useMemo(
@@ -99,20 +132,37 @@ export default function ProjectPage() {
     () => tasks.filter((t) => t.projectId === id),
     [id, tasks],
   );
+  const projectQuickTasks = useMemo(() => {
+    if (!id) return [] as QuickTask[];
+    if (Array.isArray(id)) {
+      return getProjectQuickTasks(id[0]);
+    }
+    return getProjectQuickTasks(id);
+  }, [getProjectQuickTasks, id]);
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedQuickTaskId, setSelectedQuickTaskId] = useState<string | null>(
+    null,
+  );
   const [statusFilters, setStatusFilters] = useState<TaskStatus[]>([
     "To Do",
     "In Progress",
   ]);
+  const [isQuickTaskCreateOpen, setIsQuickTaskCreateOpen] = useState(false);
 
   const liveSelectedTask = useMemo(() => {
     if (!selectedTaskId) return null;
     return tasks.find((t) => t.id === selectedTaskId);
   }, [selectedTaskId, tasks]);
 
-  const { mainNote, filteredProjectTasks } = useMemo(() => {
-    if (!project) return { mainNote: null, filteredProjectTasks: [] };
+  const liveSelectedQuickTask = useMemo(() => {
+    if (!selectedQuickTaskId) return null;
+    return quickTasks.find((task) => task.id === selectedQuickTaskId) ?? null;
+  }, [selectedQuickTaskId, quickTasks]);
+
+  const { mainNote, combinedTaskRows } = useMemo(() => {
+    if (!project)
+      return { mainNote: null, combinedTaskRows: [] as CombinedTaskRow[] };
 
     // Prefer an explicitly marked main note (isMain). Fallback to the first top-level note,
     // or the first note in the list if no top-level notes exist. This lets users mark any
@@ -123,12 +173,53 @@ export default function ProjectPage() {
       project.notes[0] ||
       null;
 
-    const filteredProjectTasks = projectTasks
+    const fullTaskRows: CombinedTaskRow[] = projectTasks
       .filter((task) => statusFilters.includes(task.status))
-      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+      .map((task) => ({
+        kind: "full" as const,
+        task,
+        priority: task.priority,
+        status: task.status,
+      }));
 
-    return { mainNote, filteredProjectTasks };
-  }, [projectTasks, project, statusFilters]);
+    const quickTaskRows: CombinedTaskRow[] = projectQuickTasks
+      .map((task) => ({
+        kind: "quick" as const,
+        task,
+        priority: task.priority,
+        status: task.status,
+      }))
+      .filter((row) => statusFilters.includes(row.status));
+
+    const combinedTaskRows = [...fullTaskRows, ...quickTaskRows].sort((a, b) => {
+      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+
+      if (a.kind !== b.kind) {
+        return a.kind === "quick" ? -1 : 1;
+      }
+
+      const aText =
+        a.kind === "full"
+          ? a.task.title.toLowerCase()
+          : a.task.title.toLowerCase();
+      const bText =
+        b.kind === "full"
+          ? b.task.title.toLowerCase()
+          : b.task.title.toLowerCase();
+      return aText.localeCompare(bText);
+    });
+
+    return { mainNote, combinedTaskRows };
+  }, [projectTasks, projectQuickTasks, project, statusFilters]);
+
+  const chartTasks = useMemo(
+    () => [...projectTasks, ...projectQuickTasks.map(quickTaskToTask)],
+    [projectTasks, projectQuickTasks],
+  );
 
   /**
    * @function handleStatusFilterChange
@@ -166,6 +257,30 @@ export default function ProjectPage() {
     newTask: Omit<Task, "id" | "logs" | "storyPoints">,
   ) => {
     createTask(newTask);
+  };
+
+  /**
+   * @function handleQuickTaskCreated
+   * Callback for when a new quick task is created from the inline form.
+   */
+  const handleQuickTaskCreated = (data: {
+    title: string;
+    description: string;
+    priority: TaskPriority;
+    points: number;
+    link?: string;
+    logs: Log[];
+  }) => {
+    if (!project) return;
+    createQuickTask({
+      projectId: project.id,
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+      points: data.points,
+      link: data.link,
+      logs: data.logs,
+    });
   };
 
   /**
@@ -275,28 +390,35 @@ export default function ProjectPage() {
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
           <TabsContent value="tasks">
-            <div className="flex items-center justify-between my-4">
-              <div className="flex items-center gap-4">
-                <Label>Filter by status:</Label>
-                {(["To Do", "In Progress", "Done"] as TaskStatus[]).map(
-                  (status) => (
-                    <div key={status} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`filter-${status}`}
-                        checked={statusFilters.includes(status)}
-                        onCheckedChange={(checked) =>
-                          handleStatusFilterChange(status, !!checked)
-                        }
-                      />
-                      <Label htmlFor={`filter-${status}`}>{status}</Label>
-                    </div>
-                  ),
-                )}
+            <div className="my-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-4">
+                  <Label>Filter by status:</Label>
+                  {(["To Do", "In Progress", "Done"] as TaskStatus[]).map(
+                    (status) => (
+                      <div key={status} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`filter-${status}`}
+                          checked={statusFilters.includes(status)}
+                          onCheckedChange={(checked) =>
+                            handleStatusFilterChange(status, !!checked)
+                          }
+                        />
+                        <Label htmlFor={`filter-${status}`}>{status}</Label>
+                      </div>
+                    ),
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <CreateTaskDialog
+                    onTaskCreated={handleTaskCreated}
+                    defaultProjectId={project.id}
+                  />
+                  <Button onClick={() => setIsQuickTaskCreateOpen(true)}>
+                    Add Quick Task
+                  </Button>
+                </div>
               </div>
-              <CreateTaskDialog
-                onTaskCreated={handleTaskCreated}
-                defaultProjectId={project.id}
-              />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
               <div className="lg:col-span-2">
@@ -306,61 +428,193 @@ export default function ProjectPage() {
                       <TableRow>
                         <TableHead>Title</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Story Points</TableHead>
+                        <TableHead>Points</TableHead>
                         <TableHead>Due Date</TableHead>
                         <TableHead>Progress</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredProjectTasks.map((task) => {
-                        const totalSubtaskPoints = task.subtasks.reduce(
-                          (sum, st) => sum + st.storyPoints,
-                          0,
-                        );
-                        const completedSubtaskPoints = task.subtasks
-                          .filter((st) => st.isCompleted)
-                          .reduce((sum, st) => sum + st.storyPoints, 0);
-                        const linkHref = task.link?.trim() ?? "";
-                        const hasLink = linkHref.length > 0;
+                      {combinedTaskRows.map((row) => {
+                        if (row.kind === "full") {
+                          const { task } = row;
+                          const totalSubtaskPoints = task.subtasks.reduce(
+                            (sum, st) => sum + st.storyPoints,
+                            0,
+                          );
+                          const completedSubtaskPoints = task.subtasks
+                            .filter((st) => st.isCompleted)
+                            .reduce((sum, st) => sum + st.storyPoints, 0);
+                          const linkHref = task.link?.trim() ?? "";
+                          const hasLink = linkHref.length > 0;
 
-                        let progress = 0;
-                        if (task.status === "Done") {
-                          progress = 100;
-                        } else if (totalSubtaskPoints > 0) {
-                          progress =
-                            (completedSubtaskPoints / totalSubtaskPoints) * 100;
+                          let progress = 0;
+                          if (task.status === "Done") {
+                            progress = 100;
+                          } else if (totalSubtaskPoints > 0) {
+                            progress =
+                              (completedSubtaskPoints / totalSubtaskPoints) *
+                              100;
+                          }
+
+                          return (
+                            <TableRow
+                              key={`full-${task.id}`}
+                              onClick={() => {
+                                setSelectedTaskId(task.id);
+                                setSelectedQuickTaskId(null);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <TableCell className="font-medium hover:underline">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{task.title}</span>
+                                  {hasLink && (
+                                    <a
+                                      href={linkHref}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      onClick={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                      className="text-primary hover:text-primary/80"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                      <span className="sr-only">
+                                        Open linked note
+                                      </span>
+                                    </a>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <Select
+                                  value={task.status}
+                                  onValueChange={(newStatus: TaskStatus) =>
+                                    updateTask(task.id, { status: newStatus })
+                                  }
+                                >
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue placeholder="Status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="To Do">To Do</SelectItem>
+                                    <SelectItem value="In Progress">
+                                      In Progress
+                                    </SelectItem>
+                                    <SelectItem value="Done">Done</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>{task.storyPoints}</TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-36 justify-start text-left font-normal",
+                                        !task.deadline && "text-muted-foreground",
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {task.deadline ? (
+                                        format(
+                                          new Date(task.deadline),
+                                          "MM/dd/yy",
+                                        )
+                                      ) : (
+                                        <span>No date</span>
+                                      )}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                      mode="single"
+                                      selected={
+                                        task.deadline
+                                          ? new Date(task.deadline)
+                                          : undefined
+                                      }
+                                      onSelect={(date) =>
+                                        updateTask(task.id, {
+                                          deadline: date?.toISOString(),
+                                        })
+                                      }
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                              </TableCell>
+                              <TableCell>
+                                <Progress
+                                  value={progress}
+                                  className="w-[100px]"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
                         }
+
+                        const quickTask = row.task;
+                        const linkHref = quickTask.link?.trim() ?? "";
+                        const hasLink = linkHref.length > 0;
+                        const progress = quickTask.status === "Done" ? 100 : 0;
 
                         return (
                           <TableRow
-                            key={task.id}
-                            onClick={() => setSelectedTaskId(task.id)}
+                            key={`quick-${quickTask.id}`}
+                            onClick={() => {
+                              setSelectedQuickTaskId(quickTask.id);
+                              setSelectedTaskId(null);
+                            }}
                             className="cursor-pointer"
                           >
                             <TableCell className="font-medium hover:underline">
-                              <div className="flex items-center gap-1">
-                                <span>{task.title}</span>
-                                {hasLink && (
-                                  <a
-                                    href={linkHref}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    onClick={(event) => event.stopPropagation()}
-                                    className="text-primary hover:text-primary/80"
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className={cn(
+                                      quickTask.status === "Done" &&
+                                        "line-through text-muted-foreground",
+                                    )}
                                   >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                    <span className="sr-only">
-                                      Open linked note
-                                    </span>
-                                  </a>
+                                    {quickTask.title}
+                                  </span>
+                                  <Badge variant="secondary" className="uppercase tracking-wide text-[10px]">
+                                    Quick
+                                  </Badge>
+                                  {hasLink && (
+                                    <a
+                                      href={linkHref}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      onClick={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                      className="text-primary hover:text-primary/80"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                      <span className="sr-only">
+                                        Open linked note
+                                      </span>
+                                    </a>
+                                  )}
+                                </div>
+                                {quickTask.description.trim() && (
+                                  <span className="text-xs text-muted-foreground break-words">
+                                    {quickTask.description}
+                                  </span>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
+                            <TableCell onClick={(event) => event.stopPropagation()}>
                               <Select
-                                value={task.status}
+                                value={quickTask.status}
                                 onValueChange={(newStatus: TaskStatus) =>
-                                  updateTask(task.id, { status: newStatus })
+                                  updateQuickTask(quickTask.id, {
+                                    status: newStatus,
+                                    isDone: newStatus === "Done",
+                                  })
                                 }
                               >
                                 <SelectTrigger className="w-32">
@@ -368,58 +622,15 @@ export default function ProjectPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="To Do">To Do</SelectItem>
-                                  <SelectItem value="In Progress">
-                                    In Progress
-                                  </SelectItem>
+                                  <SelectItem value="In Progress">In Progress</SelectItem>
                                   <SelectItem value="Done">Done</SelectItem>
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell>{task.storyPoints}</TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                      "w-36 justify-start text-left font-normal",
-                                      !task.deadline && "text-muted-foreground",
-                                    )}
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {task.deadline ? (
-                                      format(
-                                        new Date(task.deadline),
-                                        "MM/dd/yy",
-                                      )
-                                    ) : (
-                                      <span>No date</span>
-                                    )}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                  <Calendar
-                                    mode="single"
-                                    selected={
-                                      task.deadline
-                                        ? new Date(task.deadline)
-                                        : undefined
-                                    }
-                                    onSelect={(date) =>
-                                      updateTask(task.id, {
-                                        deadline: date?.toISOString(),
-                                      })
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </TableCell>
+                            <TableCell>{quickTask.points}</TableCell>
+                            <TableCell>—</TableCell>
                             <TableCell>
-                              <Progress
-                                value={progress}
-                                className="w-[100px]"
-                              />
+                              <Progress value={progress} className="w-[100px]" />
                             </TableCell>
                           </TableRow>
                         );
@@ -429,7 +640,7 @@ export default function ProjectPage() {
                 </ScrollArea>
               </div>
               <div className="lg:col-span-1">
-                <TasksByStatusChart tasks={projectTasks} />
+                <TasksByStatusChart tasks={chartTasks} />
               </div>
             </div>
           </TabsContent>
@@ -458,6 +669,12 @@ export default function ProjectPage() {
         </Card>
       )}
 
+      <QuickTaskCreateDialog
+        open={isQuickTaskCreateOpen}
+        onOpenChange={setIsQuickTaskCreateOpen}
+        onCreate={handleQuickTaskCreated}
+      />
+
       {liveSelectedTask && (
         <TaskDetailDialog
           task={liveSelectedTask}
@@ -471,6 +688,25 @@ export default function ProjectPage() {
           onAddLog={addLog}
           onUpdateLog={updateLog}
           onDeleteLog={deleteLog}
+        />
+      )}
+      {liveSelectedQuickTask && (
+        <QuickTaskDetailDialog
+          task={liveSelectedQuickTask}
+          open={!!liveSelectedQuickTask}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setSelectedQuickTaskId(null);
+            }
+          }}
+          onUpdateTask={updateQuickTask}
+          onDeleteTask={(taskId) => {
+            deleteQuickTask(taskId);
+            setSelectedQuickTaskId(null);
+          }}
+          onAddLog={addQuickTaskLog}
+          onUpdateLog={updateQuickTaskLog}
+          onDeleteLog={deleteQuickTaskLog}
         />
       )}
     </div>

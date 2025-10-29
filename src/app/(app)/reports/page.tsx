@@ -321,7 +321,7 @@ export default function ReportsPage() {
       selectedProjectId === "all"
         ? "All Projects & Todos"
         : selectedProjectId === "personal-todos"
-          ? "Personal Todos"
+          ? "In-Progress Todos"
           : projectNameMap.get(selectedProjectId) || "Unknown Project";
 
     let output = `Work Log Report\nDate Range: ${headerFrom} → ${headerTo}\nSelection: ${projectLabel}\nGenerated: ${new Date().toLocaleString()}\n\n`;
@@ -397,7 +397,7 @@ export default function ReportsPage() {
       output += "No work logs found for the current filters.\n\n";
     }
 
-    output += "=== Active Personal Todos ===\n";
+    output += "=== Active In-Progress Todos ===\n";
     if (activeTodoRows.length === 0) {
       output += "No active personal todos.\n\n";
     } else {
@@ -564,7 +564,7 @@ export default function ReportsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Active Personal Todos</CardTitle>
+            <CardTitle>Active In-Progress Todos</CardTitle>
             <CardDescription>
               Snapshot of personal todos you have in progress.
             </CardDescription>
@@ -665,7 +665,7 @@ export default function ReportsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
-                  <SelectItem value="personal-todos">Personal Todos</SelectItem>
+                  <SelectItem value="personal-todos">In-Progress Todos</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}

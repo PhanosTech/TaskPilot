@@ -1,4 +1,4 @@
-import type { Project, Task, ProjectCategory } from "@/lib/types";
+import type { Project, Task, ProjectCategory, QuickTask } from "@/lib/types";
 
 export const categories: ProjectCategory[] = [
   { id: "cat-default", name: "Work", color: "#808080" },
@@ -279,6 +279,38 @@ export const tasks: Task[] = [
         storyPoints: 3,
       },
     ],
+    logs: [],
+  },
+];
+
+export const quickTasks: QuickTask[] = [
+  {
+    id: "qtask-1",
+    projectId: "proj-1",
+    title: "Review hero copy",
+    description: "Review copy for hero section",
+    points: 2,
+    priority: "Medium",
+    status: "In Progress",
+    isDone: false,
+    link: "https://example.com/hero-copy",
+    logs: [
+      {
+        id: "qlog-1",
+        content: "Left comments in the doc for marketing team.",
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  },
+  {
+    id: "qtask-2",
+    projectId: "proj-2",
+    title: "Draft onboarding checklist",
+    description: "Prep onboarding checklist draft",
+    points: 3,
+    priority: "Low",
+    status: "Done",
+    isDone: true,
     logs: [],
   },
 ];

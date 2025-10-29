@@ -18,6 +18,7 @@ import type {
   Log,
   ProjectCategory,
   Note,
+  QuickTask,
 } from "@/lib/types";
 import {
   DEFAULT_PROJECT_PRIORITY,
@@ -48,6 +49,7 @@ const debounce = <F extends (...args: any[]) => void>(
 interface DataContextType {
   projects: Project[];
   tasks: Task[];
+  quickTasks: QuickTask[];
   categories: ProjectCategory[];
   isLoading: boolean;
   createProject: (data: {
@@ -78,10 +80,27 @@ interface DataContextType {
   addLog: (taskId: string, logContent: string) => void;
   updateLog: (taskId: string, logId: string, newContent: string) => void;
   deleteLog: (taskId: string, logId: string) => void;
+  getProjectQuickTasks: (projectId: string) => QuickTask[];
+  createQuickTask: (data: {
+    projectId: string;
+    title: string;
+    description: string;
+    points: number;
+    priority: TaskPriority;
+    link?: string;
+    logs?: Log[];
+  }) => void;
+  updateQuickTask: (id: string, changes: Partial<QuickTask>) => void;
+  deleteQuickTask: (id: string) => void;
+  addQuickTaskLog: (id: string, content: string) => void;
+  updateQuickTaskLog: (id: string, logId: string, content: string) => void;
+  deleteQuickTaskLog: (id: string, logId: string) => void;
   createCategory: (data: { name: string; color: string }) => void;
   updateCategory: (categoryId: string, data: Partial<ProjectCategory>) => void;
   deleteCategory: (categoryId: string) => void;
   moveCategory: (categoryId: string, direction: "up" | "down") => void;
+  forceSave: () => Promise<boolean>;
+  saveState: "idle" | "saving" | "saved" | "error";
 }
 
 /**
@@ -91,6 +110,7 @@ interface DataContextType {
 export const DataContext = createContext<DataContextType>({
   projects: [],
   tasks: [],
+  quickTasks: [],
   categories: [],
   isLoading: true,
   createProject: () => {},
@@ -107,10 +127,19 @@ export const DataContext = createContext<DataContextType>({
   addLog: () => {},
   updateLog: () => {},
   deleteLog: () => {},
+  getProjectQuickTasks: () => [],
+  createQuickTask: () => {},
+  updateQuickTask: () => {},
+  deleteQuickTask: () => {},
+  addQuickTaskLog: () => {},
+  updateQuickTaskLog: () => {},
+  deleteQuickTaskLog: () => {},
   createCategory: () => {},
   updateCategory: () => {},
   deleteCategory: () => {},
   moveCategory: () => {},
+  forceSave: async () => false,
+  saveState: "idle",
 });
 
 /**
@@ -141,6 +170,7 @@ export const DataContext = createContext<DataContextType>({
 export function DataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [quickTasks, setQuickTasks] = useState<QuickTask[]>([]);
   const [categories, setCategories] = useState<ProjectCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isLoaded = useRef(false);
@@ -156,6 +186,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     async (
       currentProjects: Project[],
       currentTasks: Task[],
+      currentQuickTasks: QuickTask[],
       currentCategories: ProjectCategory[],
     ) => {
       try {
@@ -165,6 +196,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             projects: currentProjects,
             tasks: currentTasks,
+            quickTasks: currentQuickTasks,
             categories: currentCategories,
           }),
         });
@@ -187,6 +219,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       (
         currentProjects: Project[],
         currentTasks: Task[],
+        currentQuickTasks: QuickTask[],
         currentCategories: ProjectCategory[],
       ) => {
         (async () => {
@@ -195,6 +228,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             const ok = await saveDataToServer(
               currentProjects,
               currentTasks,
+              currentQuickTasks,
               currentCategories,
             );
             if (ok) {
@@ -230,7 +264,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const forceSave = useCallback(async () => {
     try {
       setSaveState("saving");
-      const ok = await saveDataToServer(projects, tasks, categories);
+      const ok = await saveDataToServer(projects, tasks, quickTasks, categories);
       if (ok) {
         setSaveState("saved");
         toast({ title: "Saved", description: "Data saved to storage." });
@@ -255,7 +289,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTimeout(() => setSaveState("idle"), 1500);
       return false;
     }
-  }, [projects, tasks, categories, saveDataToServer, toast]);
+  }, [projects, tasks, quickTasks, categories, saveDataToServer, toast]);
 
   // --- Load Data ---
   useEffect(() => {
@@ -266,6 +300,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         setProjects(data.projects || []);
         setTasks(data.tasks || []);
+        setQuickTasks(data.quickTasks || []);
         setCategories(data.categories || []);
       } catch (error) {
         console.error("Failed to load data from server:", error);
@@ -280,8 +315,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // --- Persist Data on Changes ---
   useEffect(() => {
     if (!isLoaded.current) return;
-    debouncedSave(projects, tasks, categories);
-  }, [projects, tasks, categories, debouncedSave]);
+    debouncedSave(projects, tasks, quickTasks, categories);
+  }, [projects, tasks, quickTasks, categories, debouncedSave]);
 
   const createProject = useCallback(
     (data: {
@@ -374,6 +409,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deleteProject = useCallback((projectId: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     setTasks((prev) => prev.filter((t) => t.projectId !== projectId));
+    setQuickTasks((prev) => prev.filter((task) => task.projectId !== projectId));
   }, []);
 
   const getProjectTasks = useCallback(
@@ -381,6 +417,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return tasks.filter((task) => task.projectId === projectId);
     },
     [tasks],
+  );
+
+  const getProjectQuickTasks = useCallback(
+    (projectId: string) => {
+      return quickTasks.filter((task) => task.projectId === projectId);
+    },
+    [quickTasks],
   );
 
   const createTask = useCallback(
@@ -585,6 +628,161 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const getQuickTaskId = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `qtask-${Date.now()}`;
+
+  const clampPoints = (value: number) => Math.max(1, Math.min(5, Math.round(value)));
+
+  const createQuickTask = useCallback(
+    (data: {
+      projectId: string;
+      title: string;
+      description: string;
+      points: number;
+      priority: TaskPriority;
+      link?: string;
+      logs?: Log[];
+      status?: TaskStatus;
+    }) => {
+      const id = getQuickTaskId();
+      const sanitizedTitle = data.title.trim() || "Quick task";
+      const sanitizedDescription = data.description.trim();
+      const status = data.status ?? "To Do";
+      const sanitizedLogs =
+        Array.isArray(data.logs) && data.logs.length > 0
+          ? data.logs
+              .map((log) => {
+                const content =
+                  typeof log.content === "string" ? log.content.trim() : "";
+                if (!content) {
+                  return null;
+                }
+                return {
+                  id:
+                    typeof log.id === "string" && log.id.trim().length > 0
+                      ? log.id
+                      : `qlog-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                  content,
+                  createdAt:
+                    typeof log.createdAt === "string" && log.createdAt
+                      ? log.createdAt
+                      : new Date().toISOString(),
+                };
+              })
+              .filter((log): log is Log => !!log)
+          : [];
+
+      const newTask: QuickTask = {
+        id,
+        projectId: data.projectId,
+        title: sanitizedTitle,
+        description: sanitizedDescription,
+        points: clampPoints(data.points),
+        priority: data.priority ?? DEFAULT_TASK_PRIORITY,
+        status,
+        isDone: false,
+        link: data.link?.trim() ?? "",
+        logs: sanitizedLogs,
+      };
+      newTask.isDone = status === "Done";
+      setQuickTasks((prev) => [newTask, ...prev]);
+    },
+    [],
+  );
+
+  const updateQuickTask = useCallback((id: string, changes: Partial<QuickTask>) => {
+    setQuickTasks((prev) =>
+      prev.map((task) => {
+        if (task.id !== id) return task;
+        const next: QuickTask = {
+          ...task,
+          ...changes,
+        };
+        if (typeof changes.title === "string") {
+          const trimmed = changes.title.trim();
+          next.title = trimmed || task.title;
+        }
+        if (typeof changes.points === "number") {
+          next.points = clampPoints(changes.points);
+        }
+        if (typeof changes.description === "string") {
+          next.description = changes.description.trim();
+        }
+        if (typeof changes.link === "string") {
+          next.link = changes.link.trim();
+        }
+        if (changes.priority) {
+          next.priority = changes.priority;
+        }
+        if (changes.status) {
+          next.status = changes.status;
+          next.isDone = changes.status === "Done";
+        }
+        if (typeof changes.isDone === "boolean" && !changes.status) {
+          next.isDone = changes.isDone;
+          next.status = changes.isDone ? "Done" : next.status === "Done" ? "In Progress" : next.status;
+          if (!changes.isDone && next.status === "Done") {
+            next.status = "In Progress";
+          }
+        }
+        return next;
+      }),
+    );
+  }, []);
+
+  const deleteQuickTask = useCallback((id: string) => {
+    setQuickTasks((prev) => prev.filter((task) => task.id !== id));
+  }, []);
+
+  const addQuickTaskLog = useCallback((id: string, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return;
+    }
+    setQuickTasks((prev) =>
+      prev.map((task) => {
+        if (task.id !== id) return task;
+        const newLog: Log = {
+          id: `qlog-${Date.now()}`,
+          content: trimmed,
+          createdAt: new Date().toISOString(),
+        };
+        return { ...task, logs: [...task.logs, newLog] };
+      }),
+    );
+  }, []);
+
+  const updateQuickTaskLog = useCallback(
+    (id: string, logId: string, content: string) => {
+      setQuickTasks((prev) =>
+        prev.map((task) => {
+          if (task.id !== id) return task;
+          const updatedLogs = task.logs.map((log) =>
+            log.id === logId ? { ...log, content } : log,
+          );
+          return { ...task, logs: updatedLogs };
+        }),
+      );
+    },
+    [],
+  );
+
+  const deleteQuickTaskLog = useCallback((id: string, logId: string) => {
+    setQuickTasks((prev) =>
+      prev.map((task) => {
+        if (task.id !== id) return task;
+        const hasLog = task.logs.some((log) => log.id === logId);
+        if (!hasLog) {
+          console.warn(`deleteQuickTaskLog: log "${logId}" not found for "${id}"`);
+          return task;
+        }
+        return { ...task, logs: task.logs.filter((log) => log.id !== logId) };
+      }),
+    );
+  }, []);
+
   const createCategory = useCallback(
     (data: { name: string; color: string }) => {
       const newCategory: ProjectCategory = {
@@ -659,12 +857,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value = {
     projects,
     tasks,
+    quickTasks,
     categories,
     isLoading,
     createProject,
     updateProject,
     deleteProject,
     getProjectTasks,
+    getProjectQuickTasks,
     createTask,
     updateTask,
     deleteTask,
@@ -675,6 +875,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addLog,
     updateLog,
     deleteLog,
+    createQuickTask,
+    updateQuickTask,
+    deleteQuickTask,
+    addQuickTaskLog,
+    updateQuickTaskLog,
+    deleteQuickTaskLog,
     createCategory,
     updateCategory,
     deleteCategory,

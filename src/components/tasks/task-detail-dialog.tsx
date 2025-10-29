@@ -284,28 +284,34 @@ const subtaskInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
             <DialogTitle>
                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="text-lg font-semibold" />
             </DialogTitle>
-            <DialogDescription className="space-y-3">
-               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add a description..." />
-               <div className="flex items-center gap-2">
-                 <Input
-                   value={link}
-                   onChange={(e) => setLink(e.target.value)}
-                   placeholder="obsidian://open?vault=..."
-                 />
-                 {link.trim() && (
-                   <Button
-                     variant="ghost"
-                     size="icon"
-                     asChild
-                     className="h-8 w-8 shrink-0"
-                   >
-                     <a href={link} target="_blank" rel="noreferrer">
-                       <ExternalLink className="h-4 w-4" />
-                       <span className="sr-only">Open link</span>
-                     </a>
-                   </Button>
-                 )}
-               </div>
+            <DialogDescription asChild>
+              <div className="space-y-3">
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add a description..."
+                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={link}
+                    onChange={(e) => setLink(e.target.value)}
+                    placeholder="obsidian://open?vault=..."
+                  />
+                  {link.trim() && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      asChild
+                      className="h-8 w-8 shrink-0"
+                    >
+                      <a href={link} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="sr-only">Open link</span>
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

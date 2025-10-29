@@ -38,11 +38,13 @@ export function AppSidebar() {
           href="/dashboard"
           className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
         >
-          <Image 
-            src="/logo.svg" 
-            alt="TaskPilot Logo" 
-            width={24} 
+          <Image
+            src="/logo.svg"
+            alt="TaskPilot Logo"
+            width={24}
             height={24}
+            priority
+            unoptimized
             className="h-6 w-6 transition-all group-hover:scale-110"
           />
           <span className="sr-only">TaskPilot</span>
