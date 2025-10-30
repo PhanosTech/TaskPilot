@@ -17,6 +17,11 @@ echo "[TaskPilot Install] Destination directory: $DEST"
 echo "[TaskPilot Install] Ensuring destination directory exists"
 sudo mkdir -p "$DEST"
 
+if sudo systemctl is-active --quiet taskpilot.service; then
+  echo "[TaskPilot Install] Stopping existing taskpilot.service before updating files"
+  sudo systemctl stop taskpilot.service
+fi
+
 if sudo test -d "$DEST/.next"; then
   echo "[TaskPilot Install] Removing existing build artifacts at $DEST/.next"
   sudo rm -rf "$DEST/.next"
@@ -72,6 +77,7 @@ sudo cp "$SRC_DIR/scripts/systemd/taskpilot.service" /etc/systemd/system/taskpil
 
 echo "[TaskPilot Install] Reloading systemd daemon and enabling service"
 sudo systemctl daemon-reload
-sudo systemctl enable --now taskpilot.service
+sudo systemctl enable taskpilot.service
+sudo systemctl restart taskpilot.service
 
 echo "[TaskPilot Install] Installation complete"
